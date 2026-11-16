@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { pool } from "./db.js";
 
 const app = express();
 const PORT = 3001;
@@ -16,6 +17,27 @@ app.get("/api/health", (_req, res) => {
     status: "ok",
     message: "UVSS Food Bank API is running"
   });
+});
+
+app.get("/api/db-health", async (_req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT current_database() AS database, now() AS server_time"
+    );
+
+    res.json({
+      status: "connected",
+      database: result.rows[0].database,
+      serverTime: result.rows[0].server_time
+    });
+  } catch (error) {
+    console.error("Database connection error:", error);
+
+    res.status(500).json({
+      status: "error",
+      message: "Database connection failed"
+    });
+  }
 });
 
 app.listen(PORT, () => {
