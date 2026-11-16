@@ -8,7 +8,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "seed:demo-accounts": "tsx src/scripts/provisionDemoAccounts.ts"
+    "seed:demo-accounts": "tsx src/scripts/provisionDemoAccounts.ts",
+    "test:auth": "tsx src/scripts/authSmokeTest.ts"
   },
   "keywords": [],
   "author": "",
