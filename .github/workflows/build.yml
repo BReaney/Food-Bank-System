@@ -1,4 +1,4 @@
-name: Full-stack typecheck and build
+name: Full-stack build and auth integration checks
 
 on:
   push:
@@ -7,8 +7,37 @@ on:
   pull_request:
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
+
+    # Disposable fixture database. Never use real account credentials here.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: foodbank_app
+          POSTGRES_PASSWORD: ci_fixture_only_password
+          POSTGRES_DB: foodbank_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U foodbank_app -d foodbank_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      CI: 'true'
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGDATABASE: foodbank_dev
+      PGUSER: foodbank_app
+      PGPASSWORD: ci_fixture_only_password
+      ENABLE_PROTOTYPE_AUTH: 'true'
+      FRONTEND_ORIGIN: http://localhost:5173
+      DEMO_STAFF_PASSWORD: OnlyForCI_Staff_12345
+      DEMO_STUDENT_PASSWORD: OnlyForCI_Student_12345
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,3 +62,21 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      - name: Prepare fictional database and accounts
+        working-directory: backend
+        run: |
+          npm run test:db-setup
+          npm run seed:demo-accounts
+
+      - name: Run authentication API smoke tests
+        working-directory: backend
+        run: |
+          npm run dev > /tmp/uvss-backend.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3001/api/health > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          npm run test:auth
