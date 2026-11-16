@@ -30,9 +30,14 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
     credentials: "include", // Sends the HTTP-only session cookie to Express.
     ...options
   });
-  const data: { error?: string } = await response.json();
+  const data: unknown = await response.json();
   if (!response.ok) {
-    throw new Error(data.error ?? "The request failed");
+    const errorMessage =
+      typeof data === "object" && data !== null &&
+      "error" in data && typeof data.error === "string"
+        ? data.error
+        : "The request failed";
+    throw new Error(errorMessage);
   }
   return data as T;
 }
@@ -65,6 +70,8 @@ function App() {
     try {
       const result = await api<{ profile: Profile }>("/api/auth/me");
       setProfile(result.profile);
+      setEditingFirst(result.profile.first_name);
+      setEditingLast(result.profile.last_name);
     } catch {
       setProfile(null);
     } finally {
@@ -91,8 +98,6 @@ function App() {
 
   useEffect(() => {
     if (!profile) return;
-    setEditingFirst(profile.first_name);
-    setEditingLast(profile.last_name);
     if (profile.role === "student") {
       void refreshStudentData();
     } else {
@@ -139,6 +144,8 @@ function App() {
         body: JSON.stringify({ firstName: editingFirst, lastName: editingLast })
       });
       setProfile(result.profile);
+      setEditingFirst(result.profile.first_name);
+      setEditingLast(result.profile.last_name);
       setMessage({ text: "Profile changes saved.", isError: false });
     } catch (error) {
       setMessage({ text: (error as Error).message, isError: true });
