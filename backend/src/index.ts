@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { pool } from "./db.js";
+import { demoBookingsRouter } from "./routes/demoBookings.js";
 
 const app = express();
 const PORT = 3001;
@@ -74,6 +75,9 @@ app.get("/api/slots", async (_req, res) => {
     });
   }
 });
+
+// Temporary local-only POST/GET routes for the fictional demo student.
+app.use("/api/bookings", demoBookingsRouter);
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
