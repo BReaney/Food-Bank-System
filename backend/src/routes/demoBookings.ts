@@ -1,10 +1,10 @@
-import { Router } from "express";
+import express from "express";
 import type { PoolClient } from "pg";
 import { pool } from "../db.js";
 
 // Temporary LOCAL-ONLY demo workflow. This is not user authentication.
 // Real deployment must use verified sessions before enabling booking writes.
-export const demoBookingsRouter = Router();
+export const demoBookingsRouter = express.Router();
 const DEMO_EMAIL = "alex.demo@example.com";
 const LOOPBACK_ADDRESSES = new Set([
   "127.0.0.1",
