@@ -11,7 +11,8 @@
     "seed:demo-accounts": "tsx src/scripts/provisionDemoAccounts.ts",
     "test:auth": "tsx src/scripts/authSmokeTest.ts",
     "test:db-setup": "tsx src/scripts/setupCiDatabase.ts",
-    "test:eligibility": "tsx src/scripts/eligibilitySmokeTest.ts"
+    "test:eligibility": "tsx src/scripts/eligibilitySmokeTest.ts",
+    "test:pagination": "tsx src/scripts/staffPaginationSmokeTest.ts"
   },
   "keywords": [],
   "author": "",
