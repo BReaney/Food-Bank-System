@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import { pool } from "./db.js";
 import { bookingsRouter } from "./routes/bookings.js";
+import { bookingManagementRouter } from "./routes/bookingManagement.js";
+import { staffBookingsRouter } from "./routes/staffBookings.js";
 import { authRouter } from "./routes/auth.js";
 import { profileRouter } from "./routes/profiles.js";
 import { staffRouter } from "./routes/staff.js";
@@ -22,6 +24,8 @@ app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json({ limit: "16kb" }));
 
 app.use("/api", (req, res, next) => {
+  // Never cache user-specific or rapidly changing appointment data.
+  res.set("Cache-Control", "no-store");
   const protectedPaths = ["/auth", "/profile", "/staff", "/slots", "/bookings", "/eligibility", "/terms"];
   if (!protectedPaths.some(path => req.path === path || req.path.startsWith(path + "/"))) {
     next();
@@ -122,6 +126,8 @@ app.use("/api/staff/enrollments", enrollmentStaffRouter);
 app.use("/api/terms", termsRouter);
 app.use("/api/eligibility", eligibilityRouter);
 app.use("/api/bookings", bookingsRouter);
+app.use("/api/bookings", bookingManagementRouter);
+app.use("/api/staff/bookings", staffBookingsRouter);
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
