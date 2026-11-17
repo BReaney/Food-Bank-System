@@ -65,7 +65,7 @@ enrollmentStaffRouter.put("/:studentId/:termId", async (req, res) => {
   const { studentId, termId } = req.params;
   const status: unknown = req.body?.status;
   if (!uuidPattern.test(studentId ?? "") || !uuidPattern.test(termId ?? "") ||
-      !["pending", "verified", "rejected"].includes(String(status))) {
+      (typeof status !== "string" || !["pending", "verified", "rejected"].includes(status))) {
     res.status(400).json({ error: "Valid studentId, termId and status are required" });
     return;
   }
