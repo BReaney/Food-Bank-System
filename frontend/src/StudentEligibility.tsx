@@ -46,10 +46,13 @@ export default function StudentEligibility() {
 
   const selectedTerm = terms.find(term => term.id === selectedTermId);
   // Date strings are YYYY-MM-DD. Compare them with a Vancouver-local date.
-  const today = new Intl.DateTimeFormat("en-CA", {
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Vancouver",
     year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(new Date());
+  }).formatToParts(new Date());
+  const part = (type: string) =>
+    parts.find(item => item.type === type)?.value ?? "";
+  const today = part("year") + "-" + part("month") + "-" + part("day");
   const expired = selectedTerm ? selectedTerm.ends_on < today : false;
   const completed = Boolean(selectedTerm?.survey_submitted_at);
   const fullyEligible = completed && selectedTerm?.enrollment_status === "verified";
