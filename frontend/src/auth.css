@@ -41,3 +41,30 @@
 .auth-list > li { border: 1px solid var(--border, #ddd); border-radius: 8px; padding: 14px; }
 .auth-muted { opacity: 0.8; }
 .auth-page p { line-height: 1.5; }
+
+.auth-fields select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #9b9b9b;
+  border-radius: 6px;
+  font: inherit;
+  background: var(--bg, white);
+  color: var(--text-h, black);
+}
+.auth-fields .auth-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 400;
+}
+.auth-check input[type="checkbox"] {
+  width: auto;
+  flex: 0 0 auto;
+  margin-top: 6px;
+}
+.auth-fields select:focus-visible {
+  outline: 3px solid #6666cb;
+  outline-offset: 2px;
+}
