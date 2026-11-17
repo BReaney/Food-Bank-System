@@ -37,9 +37,12 @@ bookingsRouter.get("/", async (req, res) => {
     const result = await pool.query(
       `
       SELECT b.id, b.slot_id, b.status, b.booked_at,
-             s.starts_at, s.ends_at
+             s.starts_at, s.ends_at, s.term_id,
+             t.cancellation_cutoff_hours,
+             (s.starts_at >= NOW() + t.cancellation_cutoff_hours * INTERVAL '1 hour') AS can_modify
       FROM bookings AS b
       JOIN appointment_slots AS s ON s.id = b.slot_id
+      JOIN terms AS t ON t.id = s.term_id
       WHERE b.student_id = $1
         AND b.status = 'booked'
         AND s.starts_at >= NOW()
