@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/auth-and-profiles
+      - feature/eligibility-verification
   pull_request:
 
 jobs:
@@ -80,3 +81,4 @@ jobs:
             sleep 1
           done
           npm run test:auth
+          npm run test:eligibility

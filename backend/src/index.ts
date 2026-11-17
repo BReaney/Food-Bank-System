@@ -5,6 +5,9 @@ import { bookingsRouter } from "./routes/bookings.js";
 import { authRouter } from "./routes/auth.js";
 import { profileRouter } from "./routes/profiles.js";
 import { staffRouter } from "./routes/staff.js";
+import { termsRouter } from "./routes/terms.js";
+import { eligibilityRouter } from "./routes/eligibility.js";
+import { enrollmentStaffRouter } from "./routes/enrollmentStaff.js";
 import { requireUser } from "./security/sessions.js";
 
 const app = express();
@@ -19,7 +22,7 @@ app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json({ limit: "16kb" }));
 
 app.use("/api", (req, res, next) => {
-  const protectedPaths = ["/auth", "/profile", "/staff", "/slots", "/bookings"];
+  const protectedPaths = ["/auth", "/profile", "/staff", "/slots", "/bookings", "/eligibility", "/terms"];
   if (!protectedPaths.some(path => req.path === path || req.path.startsWith(path + "/"))) {
     next();
     return;
@@ -115,6 +118,9 @@ app.get("/api/slots", requireUser, async (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/profile", profileRouter);
 app.use("/api/staff", staffRouter);
+app.use("/api/staff/enrollments", enrollmentStaffRouter);
+app.use("/api/terms", termsRouter);
+app.use("/api/eligibility", eligibilityRouter);
 app.use("/api/bookings", bookingsRouter);
 
 app.listen(PORT, () => {
