@@ -41,3 +41,29 @@
 .auth-list > li { border: 1px solid var(--border, #ddd); border-radius: 8px; padding: 14px; }
 .auth-muted { opacity: 0.8; }
 .auth-page p { line-height: 1.5; }
+
+.auth-fields select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #9b9b9b;
+  border-radius: 6px;
+  font: inherit;
+  color: inherit;
+  background: var(--bg, white);
+}
+.eligibility-checks {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  padding: 16px;
+}
+.eligibility-checks label {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-weight: 400;
+}
+.eligibility-checks input { width: auto; margin-top: 5px; }
+.auth-page .auth-panel p { margin: 8px 0; }
