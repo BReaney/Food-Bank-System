@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import "./auth.css";
+import StudentEligibility from "./StudentEligibility";
+import StaffEnrollment from "./StaffEnrollment";
 
 interface Profile {
   id: string;
@@ -281,6 +283,7 @@ function App() {
 
           {profile.role === "student" ? (
             <>
+              <StudentEligibility />
               <section className="auth-panel">
                 <h2>Upcoming appointment slots</h2>
                 <ul className="auth-list">
@@ -317,6 +320,8 @@ function App() {
               </section>
             </>
           ) : (
+            <>
+            <StaffEnrollment />
             <section className="auth-panel">
               <h2>Staff-only student directory</h2>
               <p className="auth-muted">
@@ -331,6 +336,7 @@ function App() {
               </ul>
               {students.length === 0 && <p>No student profiles found.</p>}
             </section>
+            </>
           )}
         </>
       )}
