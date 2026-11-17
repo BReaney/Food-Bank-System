@@ -1,16 +1,11 @@
 import express from "express";
 import type { PoolClient } from "pg";
 import { pool } from "../db.js";
+import { currentAccount, requireRole, requireUser } from "../security/sessions.js";
 
-// Temporary LOCAL-ONLY demo workflow. This is not user authentication.
-// Real deployment must use verified sessions before enabling booking writes.
-export const demoBookingsRouter = express.Router();
-const DEMO_EMAIL = "alex.demo@example.com";
-const LOOPBACK_ADDRESSES = new Set([
-  "127.0.0.1",
-  "::1",
-  "::ffff:127.0.0.1"
-]);
+// Each booking is owned by the authenticated student session.
+export const bookingsRouter = express.Router();
+bookingsRouter.use(requireUser, requireRole("student"));
 
 class BookingRuleError extends Error {
   constructor(
@@ -19,11 +14,6 @@ class BookingRuleError extends Error {
   ) {
     super(message);
   }
-}
-
-interface DemoStudent {
-  id: string;
-  role: string;
 }
 
 interface LockedSlot {
@@ -41,28 +31,8 @@ interface EligibilityCheck {
   survey_submitted: boolean;
 }
 
-// Disabled unless deliberately enabled in backend/.env. Even then, only
-// requests originating from this machine are accepted.
-demoBookingsRouter.use((req, res, next) => {
-  if (
-    process.env.NODE_ENV === "production" ||
-    process.env.ENABLE_DEMO_BOOKING !== "true"
-  ) {
-    res.status(404).json({ error: "Demo booking endpoint disabled" });
-    return;
-  }
-
-  if (!LOOPBACK_ADDRESSES.has(req.socket.remoteAddress ?? "")) {
-    res.status(403).json({ error: "Demo bookings are local-only" });
-    return;
-  }
-
-  next();
-});
-
-// Read the fictional student's upcoming appointments.
-// This lets us confirm that a booking survives refreshing React.
-demoBookingsRouter.get("/", async (_req, res) => {
+// Retrieve only the current student's upcoming appointments.
+bookingsRouter.get("/", async (req, res) => {
   try {
     const result = await pool.query(
       `
@@ -70,25 +40,24 @@ demoBookingsRouter.get("/", async (_req, res) => {
              s.starts_at, s.ends_at
       FROM bookings AS b
       JOIN appointment_slots AS s ON s.id = b.slot_id
-      JOIN profiles AS p ON p.id = b.student_id
-      WHERE p.email = $1
+      WHERE b.student_id = $1
         AND b.status = 'booked'
         AND s.starts_at >= NOW()
       ORDER BY s.starts_at
       `,
-      [DEMO_EMAIL]
+      [currentAccount(req).id]
     );
 
     res.json({ bookings: result.rows });
   } catch (error) {
-    console.error("Unable to retrieve demo bookings:", error);
+    console.error("Unable to retrieve bookings:", error);
     res.status(500).json({ error: "Unable to retrieve bookings" });
   }
 });
 
-// Create a booking for ONLY the fixed, fictional demo student.
-// The request supplies a slotId, never a student ID or a capacity count.
-demoBookingsRouter.post("/", async (req, res) => {
+// Create a booking using the student ID derived from the server-side session.
+// The browser supplies only a slotId.
+bookingsRouter.post("/", async (req, res) => {
   const slotId: unknown = req.body?.slotId;
   const uuidPattern =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -106,15 +75,7 @@ demoBookingsRouter.post("/", async (req, res) => {
     // All following queries use the SAME connection until COMMIT/ROLLBACK.
     await client.query("BEGIN");
 
-    const studentResult = await client.query<DemoStudent>(
-      "SELECT id, role FROM profiles WHERE lower(email) = lower($1)",
-      [DEMO_EMAIL]
-    );
-    const student = studentResult.rows[0];
-
-    if (!student || student.role !== "student") {
-      throw new BookingRuleError(403, "Demo student is not configured");
-    }
+    const student = currentAccount(req);
 
     // Serialize competing bookings for the same slot. The calendar week
     // is calculated from the slot's Vancouver-local start time, not the UI.

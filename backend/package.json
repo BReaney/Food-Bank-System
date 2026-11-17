@@ -7,7 +7,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "seed:demo-accounts": "tsx src/scripts/provisionDemoAccounts.ts",
+    "test:auth": "tsx src/scripts/authSmokeTest.ts",
+    "test:db-setup": "tsx src/scripts/setupCiDatabase.ts"
   },
   "keywords": [],
   "author": "",
