@@ -3,8 +3,9 @@ name: Full-stack build and auth integration checks
 on:
   push:
     branches:
-      - feature/auth-and-profiles
-      - feature/eligibility-verification
+      - main
+      - "feature/**"
+      - "chore/**"
   pull_request:
 
 jobs:
