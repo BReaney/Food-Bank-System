@@ -57,7 +57,7 @@ Successful response shape:
   "pagination": {
     "limit": 25,
     "offset": 0,
-    "total": 55,
+    "total": 225,
     "hasNext": true,
     "hasPrevious": false
   }
@@ -96,9 +96,9 @@ keep Express running, then from `backend` run:
 npm run test:pagination
 ```
 
-This script temporarily creates 55 fictional student profiles, checks
+This script temporarily creates 225 fictional student profiles, checks
 pagination, search, invalid inputs, role restrictions and empty pages, then
-**deletes only those 55 test profiles**. It does not delete pre-existing
+**deletes only those 225 test profiles**. It does not delete pre-existing
 students, approvals, appointments, or credentials. The test needs the
 `DEMO_STAFF_PASSWORD` and `DEMO_STUDENT_PASSWORD` configured locally.
 
