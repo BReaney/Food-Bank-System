@@ -72,6 +72,7 @@ export default function StudentAppointments() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const requestNumber = useRef(0);
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
@@ -120,7 +121,7 @@ export default function StudentAppointments() {
   async function mutate(path: string, body?: Record<string, string>) {
     setBusy(true);
     setMessage("");
-    setError("");
+    setActionError("");
     try {
       const response = await fetch(API + path, {
         method: "POST",
@@ -142,7 +143,7 @@ export default function StudentAppointments() {
       setMessage(success);
       setChoices({});
     } catch (e) {
-      setError((e as Error).message);
+      setActionError((e as Error).message);
     } finally {
       await refresh(); // Reconcile even when a slot became full in another session.
       setBusy(false);
@@ -162,6 +163,9 @@ export default function StudentAppointments() {
 
   return (
     <>
+      {message && <p className="auth-notice" role="status">{message}</p>}
+      {actionError && <p className="auth-notice" role="alert">{actionError}</p>}
+      {error && <p className="auth-notice" role="alert">{error}</p>}
       <section className="auth-panel">
         <h2>Upcoming appointment slots</h2>
         <p className="auth-muted">
@@ -291,8 +295,6 @@ export default function StudentAppointments() {
         )}
       </section>
 
-      {message && <p className="auth-notice" role="status">{message}</p>}
-      {error && <p className="auth-notice" role="alert">{error}</p>}
     </>
   );
 }
