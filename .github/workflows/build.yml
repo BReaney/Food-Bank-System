@@ -83,3 +83,4 @@ jobs:
           done
           npm run test:auth
           npm run test:eligibility
+          npm run test:pagination
