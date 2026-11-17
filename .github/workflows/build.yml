@@ -1,9 +1,10 @@
-name: Full-stack build and auth integration checks
+name: Full-stack build, auth and eligibility integration checks
 
 on:
   push:
     branches:
       - feature/auth-and-profiles
+      - feature/term-eligibility-and-enrollment
   pull_request:
 
 jobs:
@@ -80,3 +81,4 @@ jobs:
             sleep 1
           done
           npm run test:auth
+          npm run test:eligibility
