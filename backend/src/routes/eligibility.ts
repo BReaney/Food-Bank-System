@@ -23,7 +23,7 @@ interface TermStatus {
 eligibilityRouter.get("/terms", async (req, res) => {
   try {
     const result = await pool.query<TermStatus>(
-      \`
+      `
       SELECT t.id, t.code, t.name, t.starts_on, t.ends_on,
              COALESCE(v.status, 'pending') AS enrollment_status,
              v.verified_at AS enrollment_verified_at,
@@ -34,7 +34,7 @@ eligibilityRouter.get("/terms", async (req, res) => {
       LEFT JOIN eligibility_surveys s
         ON s.term_id = t.id AND s.student_id = $1
       ORDER BY t.starts_on DESC
-      \`,
+      `,
       [currentAccount(req).id]
     );
     res.json({ terms: result.rows });
@@ -63,7 +63,7 @@ eligibilityRouter.post("/surveys/:termId", async (req, res) => {
 
   try {
     const result = await pool.query(
-      \`
+      `
       INSERT INTO eligibility_surveys
         (student_id, term_id, survey_version, responses)
       SELECT $1, t.id, 'demo-v2',
@@ -76,7 +76,7 @@ eligibilityRouter.post("/surveys/:termId", async (req, res) => {
         AND t.ends_on >= (NOW() AT TIME ZONE 'America/Vancouver')::date
       ON CONFLICT (student_id, term_id) DO NOTHING
       RETURNING student_id, term_id, submitted_at
-      \`,
+      `,
       [currentAccount(req).id, termId, confirmAccurate, understandVerification]
     );
 
