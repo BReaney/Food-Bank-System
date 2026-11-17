@@ -83,42 +83,54 @@ export default function StaffEnrollment() {
       limit: String(PAGE_SIZE),
       offset: String(offset)
     });
+    let running = false;
     setLoading(true);
     setError("");
 
-    void (async () => {
-      try {
-        const response = await fetch(
-          API + "/api/staff/enrollments?" + params.toString(),
-          { credentials: "include", signal: controller.signal }
-        );
-        if (!response.ok) throw new Error(await getError(response));
-        const data = await response.json() as {
-          students: Student[];
-          pagination: Pagination;
-        };
-        if (controller.signal.aborted) return;
-
-        // A deleted student might leave the final page empty.
-        // Navigate to the last valid page instead of getting stuck.
-        if (data.pagination.total > 0 && data.students.length === 0 && offset > 0) {
-          setOffset(Math.floor((data.pagination.total - 1) / PAGE_SIZE) * PAGE_SIZE);
-          return;
+    const refresh = () => {
+      if (document.hidden || running || controller.signal.aborted) return;
+      running = true;
+      void (async () => {
+        try {
+          const response = await fetch(
+            API + "/api/staff/enrollments?" + params.toString(),
+            { credentials: "include", cache: "no-store", signal: controller.signal }
+          );
+          if (!response.ok) throw new Error(await getError(response));
+          const data = await response.json() as {
+            students: Student[];
+            pagination: Pagination;
+          };
+          if (controller.signal.aborted) return;
+          if (data.pagination.total > 0 && data.students.length === 0 && offset > 0) {
+            setOffset(Math.floor((data.pagination.total - 1) / PAGE_SIZE) * PAGE_SIZE);
+            return;
+          }
+          setStudents(data.students);
+          setPage(data.pagination);
+        } catch (e) {
+          if (!controller.signal.aborted) {
+            setError((e as Error).message);
+            setStudents([]);
+            setPage(null);
+          }
+        } finally {
+          running = false;
+          if (!controller.signal.aborted) setLoading(false);
         }
-        setStudents(data.students);
-        setPage(data.pagination);
-      } catch (e) {
-        if (!controller.signal.aborted) {
-          setError((e as Error).message);
-          setStudents([]);
-          setPage(null);
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    })();
+      })();
+    };
 
-    return () => controller.abort();
+    refresh();
+    const interval = window.setInterval(refresh, 5000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [termId, appliedSearch, offset, refreshVersion]);
 
   function applySearch(event: FormEvent<HTMLFormElement>) {
