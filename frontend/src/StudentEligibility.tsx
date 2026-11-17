@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
 interface StudentTerm {
@@ -30,19 +30,39 @@ export default function StudentEligibility() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  async function load() {
+  const load = useCallback(async (signal?: AbortSignal) => {
     const response = await fetch(API + "/api/eligibility/terms", {
-      credentials: "include"
+      credentials: "include",
+      cache: "no-store",
+      signal
     });
     if (!response.ok) throw new Error(await getError(response));
     const data = await response.json() as { terms: StudentTerm[] };
+    if (signal?.aborted) return;
     setTerms(data.terms);
     setSelectedTermId(current => current || data.terms[0]?.id || "");
-  }
+  }, []);
 
   useEffect(() => {
-    void load().catch(e => setError((e as Error).message));
-  }, []);
+    const controller = new AbortController();
+    const refresh = () => {
+      if (!document.hidden) {
+        void load(controller.signal).catch(e => {
+          if (!controller.signal.aborted) setError((e as Error).message);
+        });
+      }
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 5000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [load]);
 
   const selectedTerm = terms.find(term => term.id === selectedTermId);
   // Date strings are YYYY-MM-DD. Compare them with a Vancouver-local date.
