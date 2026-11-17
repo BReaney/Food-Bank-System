@@ -13,10 +13,11 @@ if (process.env.CI !== "true" ||
 
 const migration1 = new URL("../../../database/migrations/001_core.sql", import.meta.url);
 const migration2 = new URL("../../../database/migrations/002_auth.sql", import.meta.url);
+const migration3 = new URL("../../../database/migrations/003_enrollment_history.sql", import.meta.url);
 const seed = new URL("../../../database/seed/demo.sql", import.meta.url);
 
 try {
-  for (const url of [migration1, migration2, seed]) {
+  for (const url of [migration1, migration2, migration3, seed]) {
     const sql = await readFile(url, "utf8");
     await pool.query(sql);
     console.log("Applied CI SQL fixture:", url.pathname.split("/").pop());
