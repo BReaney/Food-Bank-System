@@ -38,6 +38,10 @@ capacity and number of booked records determine what other students see.
 - Student and staff appointment panels poll every **five seconds**
   while visible, refresh on focus/visibility change, and students
   refresh immediately after each booking/cancellation/reschedule.
+- The existing student eligibility panel, staff enrollment-verification
+  roster, and staff directory now also refresh on this schedule, so
+  staff decisions, surveys and new fictional profiles become visible
+  to the authorized users without a manual page reload.
 - All /api responses have Cache-Control: no-store.
 - Polling is **not truly instantaneous**. Other open pages will typically
   reflect changes within five seconds. The server is authoritative.
