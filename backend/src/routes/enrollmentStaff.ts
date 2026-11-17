@@ -37,7 +37,7 @@ enrollmentStaffRouter.get("/", async (req, res) => {
       return;
     }
     const result = await pool.query<EnrollmentRow>(
-      \`
+      `
       SELECT p.id, p.email, p.first_name, p.last_name,
              COALESCE(v.status, 'pending') AS enrollment_status,
              v.verified_at, s.submitted_at AS survey_submitted_at
@@ -49,7 +49,7 @@ enrollmentStaffRouter.get("/", async (req, res) => {
       WHERE p.role = 'student'
       ORDER BY p.last_name, p.first_name, p.email
       LIMIT 200
-      \`,
+      `,
       [termId]
     );
     res.json({ term: term.rows[0], students: result.rows });
@@ -111,7 +111,7 @@ enrollmentStaffRouter.put("/:studentId/:termId", async (req, res) => {
     }
 
     await client.query(
-      \`
+      `
       INSERT INTO enrollment_verifications
         (student_id, term_id, status, verified_by, verified_at)
       VALUES ($1, $2, $3, $4, CASE WHEN $3 = 'verified' THEN NOW() ELSE NULL END)
@@ -119,21 +119,21 @@ enrollmentStaffRouter.put("/:studentId/:termId", async (req, res) => {
         status = EXCLUDED.status,
         verified_by = EXCLUDED.verified_by,
         verified_at = EXCLUDED.verified_at
-      \`,
+      `,
       [studentId, termId, newStatus, newStatus === "verified" ? currentAccount(req).id : null]
     );
 
     await client.query(
-      \`
+      `
       INSERT INTO enrollment_verification_events
         (student_id, term_id, actor_id, previous_status, new_status)
       VALUES ($1, $2, $3, $4, $5)
-      \`,
+      `,
       [studentId, termId, currentAccount(req).id, previousStatus, newStatus]
     );
 
     await client.query(
-      \`
+      `
       INSERT INTO audit_logs (actor_id, action, target_type, target_id, details)
       VALUES (
         $1, 'enrollment_status_changed', 'student', $2,
@@ -143,7 +143,7 @@ enrollmentStaffRouter.put("/:studentId/:termId", async (req, res) => {
           'to', $5::text
         )
       )
-      \`,
+      `,
       [currentAccount(req).id, studentId, termId, previousStatus, newStatus]
     );
 
