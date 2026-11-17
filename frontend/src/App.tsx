@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import "./auth.css";
 import StudentEligibility from "./StudentEligibility";
 import StaffEnrollment from "./StaffEnrollment";
+import StaffDirectory from "./StaffDirectory";
 
 interface Profile {
   id: string;
@@ -64,7 +65,6 @@ function App() {
   const [editingLast, setEditingLast] = useState("");
   const [slots, setSlots] = useState<Slot[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [students, setStudents] = useState<Profile[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
@@ -102,10 +102,6 @@ function App() {
     if (!profile) return;
     if (profile.role === "student") {
       void refreshStudentData();
-    } else {
-      api<{ students: Profile[] }>("/api/staff/profiles")
-        .then(data => setStudents(data.students))
-        .catch(error => setMessage({ text: String(error), isError: true }));
     }
   }, [profile?.id, profile?.role]);
 
@@ -164,7 +160,6 @@ function App() {
       setProfile(null);
       setSlots([]);
       setBookings([]);
-      setStudents([]);
     } catch (error) {
       setMessage({ text: (error as Error).message, isError: true });
     } finally {
@@ -322,20 +317,7 @@ function App() {
           ) : (
             <>
             <StaffEnrollment />
-            <section className="auth-panel">
-              <h2>Staff-only student directory</h2>
-              <p className="auth-muted">
-                This list comes from a staff-authorized API. Students cannot access it.
-              </p>
-              <ul className="auth-list">
-                {students.map(student => (
-                  <li key={student.id}>
-                    {student.first_name} {student.last_name} — {student.email}
-                  </li>
-                ))}
-              </ul>
-              {students.length === 0 && <p>No student profiles found.</p>}
-            </section>
+            <StaffDirectory />
             </>
           )}
         </>
