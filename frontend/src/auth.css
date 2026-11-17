@@ -110,3 +110,29 @@
 @media (max-width: 560px) {
   .staff-pagination { justify-content: center; }
 }
+
+/* Appointment management: readable controls on small screens. */
+.appointment-choice {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 8px;
+  font-weight: 600;
+}
+.appointment-choice select {
+  width: 100%;
+  max-width: 100%;
+  font: inherit;
+  color: inherit;
+  background: var(--bg, white);
+  padding: 10px;
+  border: 1px solid #9b9b9b;
+  border-radius: 6px;
+}
+.appointment-choice select:focus-visible {
+  outline: 3px solid #6666cb;
+  outline-offset: 2px;
+}
+.auth-page h3 {
+  margin-top: 20px;
+  line-height: 1.3;
+}
