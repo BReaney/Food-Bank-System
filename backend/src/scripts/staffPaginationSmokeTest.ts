@@ -53,7 +53,7 @@ assert.ok(staffPassword && studentPassword,
 
 const emailPrefix = "pagination-" + randomUUID();
 const emails = Array.from(
-  { length: 55 },
+  { length: 225 },
   (_, index) => emailPrefix + "-" + String(index + 1).padStart(3, "0") + "@example.test"
 );
 let createdIds: string[] = [];
@@ -66,7 +66,7 @@ try {
     [emails]
   );
   createdIds = created.rows.map(row => row.id);
-  assert.equal(createdIds.length, 55);
+  assert.equal(createdIds.length, 225);
 
   const staffCookie = await signIn("staff.demo@example.com", staffPassword);
   const studentCookie = await signIn("alex.demo@example.com", studentPassword);
@@ -92,10 +92,15 @@ try {
   const search = "&search=" + encodeURIComponent(emailPrefix);
   const first = assertPage(await get(base + search + "&limit=10&offset=0", staffCookie));
   const second = assertPage(await get(base + search + "&limit=10&offset=10", staffCookie));
-  const last = assertPage(await get(base + search + "&limit=10&offset=50", staffCookie));
-  const pastLast = assertPage(await get(base + search + "&limit=10&offset=60", staffCookie));
+  const beyondOldLimit = assertPage(await get(
+    base + search + "&limit=25&offset=200", staffCookie
+  ));
+  assert.equal(beyondOldLimit.students.length, 25);
+  assert.equal(beyondOldLimit.pagination.total, 225);
+  const last = assertPage(await get(base + search + "&limit=10&offset=220", staffCookie));
+  const pastLast = assertPage(await get(base + search + "&limit=10&offset=230", staffCookie));
 
-  assert.equal(first.pagination.total, 55);
+  assert.equal(first.pagination.total, 225);
   assert.equal(first.students.length, 10);
   assert.equal(first.pagination.limit, 10);
   assert.equal(first.pagination.offset, 0);
@@ -106,7 +111,7 @@ try {
   assert.equal(last.students.length, 5);
   assert.equal(last.pagination.hasNext, false);
   assert.equal(pastLast.students.length, 0);
-  assert.equal(pastLast.pagination.total, 55);
+  assert.equal(pastLast.pagination.total, 225);
   assert.equal(pastLast.pagination.hasNext, false);
   const distinctIds = new Set([...first.students, ...second.students, ...last.students]
     .map(student => student.id));
@@ -117,7 +122,7 @@ try {
     base + "&search=" + encodeURIComponent(emailPrefix.toUpperCase()) + "&limit=25",
     staffCookie
   ));
-  assert.equal(upper.pagination.total, 55);
+  assert.equal(upper.pagination.total, 225);
   const missing = assertPage(await get(
     base + "&search=" + encodeURIComponent("NO_MATCH_" + randomUUID()), staffCookie
   ));
@@ -131,14 +136,14 @@ try {
     "/api/staff/profiles?search=" + encodeURIComponent(emailPrefix) + "&limit=25&offset=25",
     staffCookie
   ));
-  assert.equal(directory.pagination.total, 55);
+  assert.equal(directory.pagination.total, 225);
   assert.equal(directory.students.length, 25);
   assert.equal(directory.pagination.offset, 25);
   assert.equal(directory.pagination.hasNext, true);
   console.log("PASS: staff student directory supports the same pagination");
 
   const unfiltered = assertPage(await get(base + "&limit=25", staffCookie));
-  assert.ok(unfiltered.pagination.total >= 55);
+  assert.ok(unfiltered.pagination.total >= 225);
   assert.equal(unfiltered.students.length, 25);
   console.log("PASS: unfiltered staff roster no longer stops at 200 students");
   console.log("Staff pagination integration tests passed.");
