@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import "./auth.css";
+import { api } from "./api.js";
+import { EligibilityPanel } from "./EligibilityPanel.js";
+import type { TermEligibility } from "./EligibilityPanel.js";
+import { StaffEnrollmentPanel } from "./StaffEnrollmentPanel.js";
 
 interface Profile {
   id: string;
@@ -11,6 +15,7 @@ interface Profile {
 }
 interface Slot {
   id: string;
+  term_id: string;
   starts_at: string;
   capacity: number;
   is_open: boolean;
@@ -23,25 +28,6 @@ interface Booking {
   status: string;
 }
 type Message = { text: string; isError: boolean };
-const API = "http://localhost:3001";
-
-async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(API + path, {
-    credentials: "include", // Sends the HTTP-only session cookie to Express.
-    ...options
-  });
-  const data: unknown = await response.json();
-  if (!response.ok) {
-    const errorMessage =
-      typeof data === "object" && data !== null &&
-      "error" in data && typeof data.error === "string"
-        ? data.error
-        : "The request failed";
-    throw new Error(errorMessage);
-  }
-  return data as T;
-}
-
 function dateLabel(value: string): string {
   return new Date(value).toLocaleString("en-CA", {
     timeZone: "America/Vancouver",
@@ -63,6 +49,7 @@ function App() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [students, setStudents] = useState<Profile[]>([]);
+  const [terms, setTerms] = useState<TermEligibility[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
@@ -163,6 +150,7 @@ function App() {
       setSlots([]);
       setBookings([]);
       setStudents([]);
+      setTerms([]);
     } catch (error) {
       setMessage({ text: (error as Error).message, isError: true });
     } finally {
@@ -281,12 +269,18 @@ function App() {
 
           {profile.role === "student" ? (
             <>
+              <EligibilityPanel onTermsChange={setTerms} />
               <section className="auth-panel">
                 <h2>Upcoming appointment slots</h2>
                 <ul className="auth-list">
                   {slots.map(slot => {
                     const alreadyBooked = bookings.some(b => b.slot_id === slot.id);
                     const available = slot.is_open && slot.remaining_capacity > 0;
+                    const eligible = terms.some(term =>
+                      term.id === slot.term_id &&
+                      term.survey_submitted &&
+                      term.enrollment_status === "verified"
+                    );
                     return (
                       <li key={slot.id}>
                         <strong>{dateLabel(slot.starts_at)}</strong>
@@ -294,9 +288,9 @@ function App() {
                           ? String(slot.remaining_capacity) + " of " + String(slot.capacity) + " spaces available"
                           : "Closed or full"}</p>
                         <button type="button"
-                          disabled={busy || !available || alreadyBooked}
+                          disabled={busy || !available || !eligible || alreadyBooked}
                           onClick={() => void book(slot.id)}>
-                          {alreadyBooked ? "Already booked" : "Book this slot"}
+                          {alreadyBooked ? "Already booked" : !eligible ? "Eligibility required" : "Book this slot"}
                         </button>
                       </li>
                     );
@@ -317,6 +311,8 @@ function App() {
               </section>
             </>
           ) : (
+            <>
+            <StaffEnrollmentPanel />
             <section className="auth-panel">
               <h2>Staff-only student directory</h2>
               <p className="auth-muted">
@@ -331,6 +327,7 @@ function App() {
               </ul>
               {students.length === 0 && <p>No student profiles found.</p>}
             </section>
+            </>
           )}
         </>
       )}
