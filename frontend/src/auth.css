@@ -67,3 +67,46 @@
 }
 .eligibility-checks input { width: auto; margin-top: 5px; }
 .auth-page .auth-panel p { margin: 8px 0; }
+
+/* Staff list search and pagination: keyboard-usable and narrow-screen friendly. */
+.staff-search-form {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0;
+}
+.staff-search-form > label {
+  font-weight: 600;
+}
+.staff-search-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.staff-search-row input {
+  flex: 1 1 220px;
+  min-width: 0;
+  font: inherit;
+  padding: 9px 12px;
+  border-radius: 6px;
+  border: 1px solid #9b9b9b;
+}
+.staff-search-row input:focus-visible,
+.auth-fields select:focus-visible {
+  outline: 3px solid #6666cb;
+  outline-offset: 2px;
+}
+.staff-pagination {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.staff-pagination span {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 560px) {
+  .staff-pagination { justify-content: center; }
+}
