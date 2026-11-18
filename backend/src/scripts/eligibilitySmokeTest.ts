@@ -198,6 +198,10 @@ try {
     const newBooking = await request("POST", "/api/bookings", studentCookie,
       { slotId:second.rows[0].id });
     assert.equal(newBooking.status, 403, JSON.stringify(newBooking.body));
+    const reschedule = await request("POST",
+      "/api/bookings/" + booked.body.booking.id + "/reschedule",
+      studentCookie, { slotId:second.rows[0].id });
+    assert.equal(reschedule.status, 403, JSON.stringify(reschedule.body));
     const existingAgain = await request("GET", "/api/bookings", studentCookie);
     assert.ok(existingAgain.body.bookings.some((b:any) =>
       b.id === booked.body.booking.id && b.status === "booked"
