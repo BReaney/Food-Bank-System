@@ -415,11 +415,13 @@ export default function StaffCalendar(){
           setEditingSlotId(null);
           setSlotLocal("");
         }} />
+        {termId && !currentSchedule && !error &&
+          <p role="status">Loading slots for the selected term and week...</p>}
         {hasMore && <p role="alert">
           This week has more than 500 appointment slots; only the first 500
           are displayed. Contact the developer if this limit is reached.
         </p>}
-        <WeeklyPlanner
+        {currentSchedule && <WeeklyPlanner
           week={week}
           slots={slots}
           ariaLabel="Staff weekly appointment schedule"
@@ -440,7 +442,7 @@ export default function StaffCalendar(){
               </button>
             );
           }}
-        />
+        />}
         {(() => {
           const slot = slots.find(item => item.id === selectedSlotId);
           if (!slot) return null;
