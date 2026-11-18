@@ -15,7 +15,8 @@
     "test:pagination": "tsx src/scripts/staffPaginationSmokeTest.ts",
     "test:booking-management": "tsx src/scripts/bookingManagementSmokeTest.ts",
     "test:household": "tsx src/scripts/householdSmokeTest.ts",
-    "test:calendar": "tsx src/scripts/calendarSmokeTest.ts"
+    "test:calendar": "tsx src/scripts/calendarSmokeTest.ts",
+    "test:staff-outcomes": "tsx src/scripts/staffOutcomesSmokeTest.ts"
   },
   "keywords": [],
   "author": "",
