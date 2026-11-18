@@ -39,15 +39,30 @@ real deployment. Consent text and timestamp are saved on each edit.
 ### Revocation and current bookings
 
 Changing a contact resets its status to pending and requires new consent.
-Removing a dependent or contact, or staff withdrawing its confirmation,
-atomically changes any future booked appointment using that person back
-to **student pickup** and records a pickup_updated event for the student.
-The appointment itself remains booked. Both student and staff views
-refresh within about five seconds, or on tab focus. The student must
-select an approved alternative before their usual appointment cutoff,
-or contact staff. This avoids silently leaving an unapproved person
-assigned. The event log preserves the reason without exposing contact
-phone/email details.
+Student changes to the person assigned to an appointment use the SAME
+term-specific notice window as cancellation and rescheduling (24 hours
+by default): strictly **more than** the configured notice period must
+remain before the appointment starts. This rule covers both direct
+booking pickup changes and indirect changes that affect a booking.
+
+If a dependent or contact is assigned to any active booking **inside**
+its change cutoff, the student cannot remove the dependent or edit/remove
+that contact: the API returns HTTP 422 without changing the record or
+booking. Editing unrelated, unused contacts or registering new dependents
+is still permitted. For urgent changes, contact staff.
+
+Outside the cutoff, editing/removing an assigned contact or removing an
+assigned confirmed dependent atomically switches affected bookings back
+to **student pickup**, without cancelling the reservation, and creates
+a pickup_updated event. Staff withdrawals are an authorized safety
+override: removing staff approval immediately clears assignments for
+future **and in-progress** bookings (until their scheduled end), even
+inside the student's change cutoff. No unapproved pickup remains assigned
+to an active appointment in progress.
+
+Both student and staff views refresh within about five seconds, or on
+tab focus. Events preserve the reason without exposing contact phone/email
+details.
 
 **Policy clarification still needed:** the RSD permits naming a confirmed
 dependent during booking but does not clarify age or pickup eligibility.
@@ -97,7 +112,12 @@ Use separate browser profiles for two fictional students and staff.
    using that contact reverts to student pickup, with a private event.
 9. Staff: re-confirm the contact; A can select them again in an existing
    booking before the normal appointment cutoff. Staff denial resets
-   existing future designations to student pickup again.
+   future and in-progress designations to student pickup again.
+9a. For a fictional booking less than 24 hours away, a student must
+    receive HTTP 422 on direct pickup changes, contact edit/removal,
+    dependent removal, cancellation and rescheduling. The existing
+    designation and approvals must remain unchanged. Staff may still
+    revoke an assigned pickup contact immediately.
 10. Staff: check the authorized booking roster's pickup details; no other
     student should see the stored name, email or phone.
 
