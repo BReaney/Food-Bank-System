@@ -136,8 +136,10 @@ report latency (N-P01, N-P02, N-P04); ten simultaneous booking clients
 (N-P03, deferred by user decision); formal UVic/UVSS privacy-policy
 compliance (N-S09); and any client-approved needs reporting.
 
-These gaps are documented for portfolio transparency and must not be
-presented as successful production acceptance tests.
+These gaps are documented for portfolio transparency and are not
+presented as successful production acceptance tests. In short, certain
+performance specifications were not tested for this prototype, as they fell
+outside of scope.
 
 ## How results are captured
 
