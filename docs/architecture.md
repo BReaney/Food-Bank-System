@@ -63,7 +63,7 @@ sequenceDiagram
     participant DB as PostgreSQL
     Student->>UI: Select available appointment
     UI->>API: POST /api/bookings + session cookie
-    API->>DB: BEGIN; lock slot / check capacity
+    API->>DB: Begin transaction and lock the selected slot
     API->>DB: Validate term survey and staff verification
     API->>DB: Enforce booking window + weekly limit
     alt All checks pass
@@ -72,7 +72,7 @@ sequenceDiagram
       API-->>UI: 201 Created
     else Validation or capacity fails
       API->>DB: ROLLBACK
-      API-->>UI: 4xx error; no confirmation created
+      API-->>UI: 4xx error with no confirmation created
     end
     UI-->>Student: Booking result and private inbox notice
 ```
