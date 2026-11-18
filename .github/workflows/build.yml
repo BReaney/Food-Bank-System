@@ -92,3 +92,4 @@ jobs:
           npm run test:household
           npm run test:calendar
           npm run test:staff-outcomes
+          npm run test:reporting
