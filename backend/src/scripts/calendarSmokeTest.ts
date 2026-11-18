@@ -153,7 +153,32 @@ try {
   assert.ok(availability.body.slots.some((x:any)=>x.id===slotId));
   assert.ok(!JSON.stringify(availability.body).includes(emails[0]));
   expectStatus(await request("GET","/api/slots?month=wrong",b),400);
-  console.log("PASS: create individual slots; students see capacity not identities");
+
+  // A week begins on Monday in Vancouver, regardless of browser timezone.
+  const monday = new Date(day+"T12:00:00Z");
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay()+6)%7));
+  const week = monday.toISOString().slice(0,10);
+  const otherMonday = new Date(monday.getTime()+7*86400000)
+    .toISOString().slice(0,10);
+  const studentWeek = await request("GET","/api/slots?week="+week,b);
+  expectStatus(studentWeek,200);
+  assert.ok(studentWeek.body.slots.some((x:any)=>x.id===slotId));
+  assert.ok(!JSON.stringify(studentWeek.body).includes(emails[0]));
+  const staffWeek = await request(
+    "GET","/api/staff/calendar/slots?termId="+termId+"&week="+week,staff
+  );
+  expectStatus(staffWeek,200);
+  assert.ok(staffWeek.body.slots.some((x:any)=>x.id===slotId));
+  const nextWeek = await request("GET","/api/slots?week="+otherMonday,b);
+  expectStatus(nextWeek,200);
+  assert.ok(!nextWeek.body.slots.some((x:any)=>x.id===slotId));
+  expectStatus(await request("GET","/api/slots?week="+day,b),day===week?200:400);
+  expectStatus(await request("GET","/api/slots?week=2026-02-30",b),400);
+  expectStatus(await request("GET",
+    "/api/slots?month="+futureMonth+"&week="+week,b),400);
+  expectStatus(await request("GET",
+    "/api/staff/calendar/slots?termId="+termId+"&week="+day,a),403);
+  console.log("PASS: weekly student/staff calendar filters, Monday validation and role privacy");
 
   // Prepare fictional eligibility records for both new students.
   const staffProfile=await pool.query<{id:string}>(
