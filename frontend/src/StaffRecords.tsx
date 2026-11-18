@@ -69,6 +69,7 @@ async function requestJson<T>(url: string, signal: AbortSignal): Promise<T> {
 export default function StaffRecords() {
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
+  const [searchRevision, setSearchRevision] = useState(0);
   const [offset, setOffset] = useState(0);
   const [students, setStudents] = useState<Student[]>([]);
   const [page, setPage] = useState<Page | null>(null);
@@ -77,6 +78,7 @@ export default function StaffRecords() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [appointmentOffset, setAppointmentOffset] = useState(0);
   const [record, setRecord] = useState<StudentRecord | null>(null);
+  const [recordRevision, setRecordRevision] = useState(0);
   const [recordLoading, setRecordLoading] = useState(false);
   const [recordError, setRecordError] = useState("");
 
@@ -108,7 +110,7 @@ export default function StaffRecords() {
       }
     })();
     return () => controller.abort();
-  }, [search, offset]);
+  }, [search, offset, searchRevision]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -138,7 +140,7 @@ export default function StaffRecords() {
       }
     })();
     return () => controller.abort();
-  }, [selectedId, appointmentOffset]);
+  }, [selectedId, appointmentOffset, recordRevision]);
 
   function applySearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,11 +149,13 @@ export default function StaffRecords() {
     setAppointmentOffset(0);
     setOffset(0);
     setSearch(input.trim());
+    setSearchRevision(value => value + 1);
   }
 
   function clearSearch() {
     setInput("");
     setSearch("");
+    setSearchRevision(value => value + 1);
     setOffset(0);
     setSelectedId(null);
     setRecord(null);
@@ -163,6 +167,7 @@ export default function StaffRecords() {
     setRecord(null);
     setSelectedId(id);
     setAppointmentOffset(0);
+    setRecordRevision(value => value + 1);
   }
 
   return (
@@ -206,7 +211,7 @@ export default function StaffRecords() {
                         aria-pressed={selectedId === student.id}
                         disabled={recordLoading && selectedId === student.id}
                         onClick={() => viewStudent(student.id)}>
-                        {selectedId === student.id ? "Selected record" : "View record"}
+                        {selectedId === student.id ? "Refresh record" : "View record"}
                       </button>
                     </li>
                   ))}
