@@ -160,9 +160,16 @@ async function overlap(
     throw new CalendarError(409, "An open appointment slot overlaps this time");
   }
 }
+function localYmd(value: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ZONE, year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(value);
+  const part = (type: string) => parts.find(p => p.type === type)?.value ?? "";
+  return part("year") + "-" + part("month") + "-" + part("day");
+}
 function checkRange(term: TermRow, time: TimeRow) {
-  const starts = time.starts_at.toLocaleDateString("en-CA", { timeZone: ZONE });
-  const ends = time.ends_at.toLocaleDateString("en-CA", { timeZone: ZONE });
+  const starts = localYmd(time.starts_at);
+  const ends = localYmd(time.ends_at);
   if (!dateInRange(starts, term.starts_on, term.ends_on) ||
       !dateInRange(ends, term.starts_on, term.ends_on)) {
     throw new CalendarError(422, "The appointment must begin and end within its term");
@@ -173,8 +180,7 @@ function checkRange(term: TermRow, time: TimeRow) {
 }
 function weekOf(value: Date): string {
   // ISO week Monday in the food bank's local timezone.
-  const date = value.toLocaleDateString("en-CA", { timeZone: ZONE });
-  const d = new Date(date + "T12:00:00Z");
+  const d = new Date(localYmd(value) + "T12:00:00Z");
   const day = (d.getUTCDay() + 6) % 7;
   d.setUTCDate(d.getUTCDate() - day);
   return d.toISOString().slice(0,10);
@@ -413,6 +419,9 @@ staffCalendarRouter.post("/slots/:slotId/close", async (req,res) => {
       await lockTerm(client,initial.rows[0].term_id);
       const slot = await lockedSlot(client,id);
       if (!slot.is_open) throw new CalendarError(409,"Slot is already closed");
+      if (slot.starts_at.getTime() <= Date.now()) {
+        throw new CalendarError(422,"Past or in-progress appointments cannot be closed");
+      }
       await client.query("UPDATE appointment_slots SET is_open=false WHERE id=$1",[id]);
       const cancelled = await client.query<{id:string;student_id:string}>(
         `UPDATE bookings SET status='cancelled',cancelled_at=NOW()
