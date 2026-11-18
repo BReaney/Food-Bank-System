@@ -89,6 +89,8 @@ async function fetchData<T>(path: string, signal?: AbortSignal): Promise<T> {
 
 export default function StudentAppointments() {
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [month, setMonth] = useState("");
+  const [slotsTruncated, setSlotsTruncated] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [events, setEvents] = useState<EventRecord[]>([]);
@@ -108,7 +110,7 @@ export default function StudentAppointments() {
     const requestId = ++requestNumber.current;
     try {
       const [slotResult, bookingResult, historyResult, eventResult, d, c] = await Promise.all([
-        fetchData<{ slots: Slot[] }>("/api/slots", signal),
+        fetchData<{ slots: Slot[]; hasMore: boolean }>("/api/slots"+(month ? "?month="+encodeURIComponent(month) : ""), signal),
         fetchData<{ bookings: Booking[] }>("/api/bookings", signal),
         fetchData<{ bookings: HistoryRecord[] }>("/api/bookings/history", signal),
         fetchData<{ events: EventRecord[] }>("/api/bookings/events", signal),
@@ -118,6 +120,7 @@ export default function StudentAppointments() {
       if (signal?.aborted || requestId !== requestNumber.current) return;
 
       setSlots(slotResult.slots);
+      setSlotsTruncated(slotResult.hasMore);
       setBookings(bookingResult.bookings);
       setHistory(historyResult.bookings);
       setEvents(eventResult.events);
@@ -133,7 +136,7 @@ export default function StudentAppointments() {
         setInitialLoading(false);
       }
     }
-  }, []);
+  }, [month]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -229,6 +232,18 @@ export default function StudentAppointments() {
           Only confirmed people can be selected. Third-party contacts require
           your recorded consent; approval is checked again when you book.
         </p>
+        <label className="appointment-choice">
+          Browse appointment month (Vancouver time)
+          <input type="month" value={month}
+            onChange={e => setMonth(e.target.value)} />
+        </label>
+        {month && <button type="button" onClick={() => setMonth("")}>
+          View all upcoming months
+        </button>}
+        {slotsTruncated && <p role="status">
+          Showing the first 500 slots. Choose a specific month to see
+          additional dates.
+        </p>}
         <ul className="auth-list">
           {slots.map(slot => {
             const alreadyBooked = bookings.some(b => b.slot_id === slot.id);
