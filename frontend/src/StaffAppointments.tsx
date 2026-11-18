@@ -13,6 +13,10 @@ interface Booking {
   booked_at: string;
   term_code: string;
   term_name: string;
+  pickup_kind: "self" | "dependent" | "third_party";
+  pickup_name: string | null;
+  pickup_status: string | null;
+  pickup_consent_at: string | null;
 }
 interface Pagination {
   limit: number; offset: number; total: number;
@@ -186,6 +190,16 @@ export default function StaffAppointments() {
                   <p>{booking.email}</p>
                   <p>{dateLabel(booking.starts_at)} — {booking.term_code}</p>
                   <p>Status: <strong>{booking.status}</strong></p>
+                  <p>Pickup: <strong>{booking.pickup_kind === "self"
+                    ? "Student collecting"
+                    : booking.pickup_name ?? "Unknown"}</strong>
+                    {booking.pickup_kind !== "self" &&
+                      " (" + (booking.pickup_status ?? "unverified") + ")"}
+                  </p>
+                  {booking.pickup_kind === "third_party" && booking.pickup_consent_at &&
+                    <p className="auth-muted">
+                      Consent recorded: {dateLabel(booking.pickup_consent_at)}
+                    </p>}
                 </li>
               ))}
             </ul>
