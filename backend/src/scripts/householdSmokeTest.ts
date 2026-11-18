@@ -274,6 +274,25 @@ try {
   );
   assert.equal(unchanged.rows[0].pickup_kind, "third_party");
   console.log("PASS: 24-hour cutoff covers cancellation, reschedule, direct pickup and contact edit/removal");
+
+  // A term can configure a different cutoff. At 36h, 48h notice
+  // prohibits edits; switching the term to 24h permits them again.
+  await moveFixtureAppointment(slotId, bookingId, "36 hours");
+  await pool.query(
+    "UPDATE terms SET cancellation_cutoff_hours=48 WHERE id=$1",[termId]
+  );
+  assert.equal((await request("PATCH", "/api/bookings/" + bookingId + "/pickup",
+    a, {pickupKind:"self"})).status, 422);
+  assert.equal((await request("DELETE",
+    "/api/household/contacts/" + contactId, a)).status, 422);
+  await pool.query(
+    "UPDATE terms SET cancellation_cutoff_hours=24 WHERE id=$1",[termId]
+  );
+  assert.equal((await request("PATCH", "/api/bookings/" + bookingId + "/pickup",
+    a, {pickupKind:"self"})).status, 200);
+  assert.equal((await request("PATCH", "/api/bookings/" + bookingId + "/pickup",
+    a, {pickupKind:"third_party",pickupId:contactId})).status, 200);
+  console.log("PASS: cutoff follows configured term policy and allows edits before deadline");
   await moveFixtureAppointment(slotId, bookingId, "15 days");
 
   const rejected = await staffChange("contacts", contactId, staff, "denied");
