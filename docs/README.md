@@ -4,6 +4,8 @@ The [root README](../README.md) is the **current entry point** for project featu
 
 > **Unofficial project:** This is an independent personal-development portfolio prototype, **not affiliated with or endorsed by the University of Victoria (UVic) or the University of Victoria Students' Society (UVSS)**. Use fictional demonstration records only.
 
+> **AI disclaimer:** This project used a mix of AI, personal skills, and documents created by me for some of my courses. I personally find AI a valuable tool for assistance with coding, while also understanding problems with
+> the use of it. While the code may be AI, I personally have also proofread the code, and am confident in its processes and use as a learning tool.  
 ## Start here
 
 | Document | Purpose |
