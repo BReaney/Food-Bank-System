@@ -4,6 +4,8 @@ import { pool } from "./db.js";
 import { bookingsRouter } from "./routes/bookings.js";
 import { bookingManagementRouter } from "./routes/bookingManagement.js";
 import { staffBookingsRouter } from "./routes/staffBookings.js";
+import { householdRouter } from "./routes/household.js";
+import { staffHouseholdRouter } from "./routes/staffHousehold.js";
 import { authRouter } from "./routes/auth.js";
 import { profileRouter } from "./routes/profiles.js";
 import { staffRouter } from "./routes/staff.js";
@@ -26,7 +28,7 @@ app.use(express.json({ limit: "16kb" }));
 app.use("/api", (req, res, next) => {
   // Never cache user-specific or rapidly changing appointment data.
   res.set("Cache-Control", "no-store");
-  const protectedPaths = ["/auth", "/profile", "/staff", "/slots", "/bookings", "/eligibility", "/terms"];
+  const protectedPaths = ["/auth", "/profile", "/staff", "/slots", "/bookings", "/eligibility", "/terms", "/household"];
   if (!protectedPaths.some(path => req.path === path || req.path.startsWith(path + "/"))) {
     next();
     return;
@@ -128,6 +130,8 @@ app.use("/api/eligibility", eligibilityRouter);
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/bookings", bookingManagementRouter);
 app.use("/api/staff/bookings", staffBookingsRouter);
+app.use("/api/household", householdRouter);
+app.use("/api/staff/household", staffHouseholdRouter);
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
