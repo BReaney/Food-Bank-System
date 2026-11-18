@@ -85,3 +85,4 @@ jobs:
           npm run test:eligibility
           npm run test:pagination
           npm run test:booking-management
+          npm run test:household
