@@ -172,6 +172,41 @@ try {
   );
   assert.equal(audit.rows[0].total, 2);
   console.log("PASS: both staff decisions preserved in audit and event history");
+
+  // Explicit policy: losing verification blocks NEW bookings, but does
+  // not retroactively cancel an appointment already confirmed.
+  const second = await pool.query<{id:string}>(
+    `INSERT INTO appointment_slots(term_id, starts_at, ends_at, capacity)
+     VALUES ($1,
+       ((CURRENT_DATE + 25) + TIME '16:00') AT TIME ZONE 'America/Vancouver',
+       ((CURRENT_DATE + 25) + TIME '16:20') AT TIME ZONE 'America/Vancouver', 1)
+     RETURNING id`,
+    [termId]
+  );
+  try {
+    const withdrawn = await request(
+      "PUT", "/api/staff/enrollments/" + studentId + "/" + termId,
+      staffCookie, { status:"rejected" }
+    );
+    assert.equal(withdrawn.status, 200, JSON.stringify(withdrawn.body));
+    const existing = await request("GET", "/api/bookings", studentCookie);
+    assert.equal(existing.status, 200);
+    assert.ok(existing.body.bookings.some((b:any) =>
+      b.id === booked.body.booking.id && b.status === "booked"
+    ), "A confirmed reservation must survive withdrawal of enrollment approval");
+
+    const newBooking = await request("POST", "/api/bookings", studentCookie,
+      { slotId:second.rows[0].id });
+    assert.equal(newBooking.status, 403, JSON.stringify(newBooking.body));
+    const existingAgain = await request("GET", "/api/bookings", studentCookie);
+    assert.ok(existingAgain.body.bookings.some((b:any) =>
+      b.id === booked.body.booking.id && b.status === "booked"
+    ));
+    console.log("PASS: withdrawing verification preserves existing appointment, forbids new booking");
+  } finally {
+    await pool.query("DELETE FROM appointment_slots WHERE id=$1",
+      [second.rows[0].id]);
+  }
   console.log("Eligibility integration tests passed.");
 } finally {
   await pool.end();
