@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import WeeklyPlanner, { WeekPicker } from "./WeeklyPlanner";
 import { addCalendarDays, clockLabel, localParts, todayVancouver, weekOf } from "./calendarDates";
+import { validRescheduleChoice, visibleCalendarSchedule } from "./calendarStateGuards";
 
 interface Slot {
   id: string;
@@ -121,7 +122,7 @@ export default function StudentAppointments() {
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const requestNumber = useRef(0);
-  const visibleWeek = loadedWeek?.week === week ? loadedWeek : null;
+  const visibleWeek = visibleCalendarSchedule(loadedWeek, week);
   const slots = visibleWeek?.slots ?? [];
   const slotsTruncated = visibleWeek?.hasMore ?? false;
   const isLoadingWeek = visibleWeek === null;
@@ -334,9 +335,9 @@ export default function StudentAppointments() {
             );
             // Never permit a stale, full or hidden slot ID to be sent in
             // a rescheduling request, even if availability refreshes.
-            const selected = alternatives.some(slot =>
-              slot.id === choices[booking.id]
-            ) ? choices[booking.id] : "";
+            const selected = validRescheduleChoice(
+              alternatives, choices[booking.id]
+            );
             return (
               <li key={booking.id}>
                 <strong>{dateLabel(booking.starts_at)}</strong>
