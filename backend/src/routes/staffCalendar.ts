@@ -26,6 +26,12 @@ function reject(res: express.Response, error: unknown) {
     res.status(500).json({ error: "Unable to update staff calendar" });
   }
 }
+function validCalendarWeek(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + "T12:00:00Z");
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value &&
+    date.getUTCDay() === 1;
+}
 function validDate(value: unknown): value is string {
   if (typeof value !== "string" || !DATE.test(value)) return false;
   const dt = new Date(value + "T12:00:00Z");
@@ -313,10 +319,16 @@ staffCalendarRouter.put("/terms/:termId", async (req, res) => {
 staffCalendarRouter.get("/slots", async (req, res) => {
   const termId = req.query.termId;
   const month = req.query.month;
+  const week = req.query.week;
   if (typeof termId !== "string" || !UUID.test(termId) ||
       (month !== undefined && (typeof month !== "string" ||
-       !/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month)))) {
-    res.status(400).json({ error: "Valid term ID and optional YYYY-MM month are required" }); return;
+       !/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month))) ||
+      (week !== undefined && !validCalendarWeek(week)) ||
+      (month !== undefined && week !== undefined)) {
+    res.status(400).json({
+      error: "Valid term ID plus optional Monday week=YYYY-MM-DD or month=YYYY-MM required"
+    });
+    return;
   }
   try {
     const rows = await pool.query(
@@ -329,8 +341,12 @@ staffCalendarRouter.get("/slots", async (req, res) => {
              (($2::text || '-01')::date)
             AND (starts_at AT TIME ZONE 'America/Vancouver')::date <
              (($2::text || '-01')::date + INTERVAL '1 month')))
+         AND ($3::date IS NULL OR
+           ((starts_at AT TIME ZONE 'America/Vancouver')::date >= $3::date
+            AND (starts_at AT TIME ZONE 'America/Vancouver')::date <
+             ($3::date + INTERVAL '7 days')))
        ORDER BY starts_at,id LIMIT 501`,
-      [termId,month??null]
+      [termId,month??null,week??null]
     );
     res.json({ slots: rows.rows.slice(0,500), hasMore: rows.rows.length>500 });
   } catch (error) { reject(res, error); }
