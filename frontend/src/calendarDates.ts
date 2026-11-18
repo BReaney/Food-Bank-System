@@ -49,5 +49,5 @@ export function weekHeading(monday: string): string {
 export function clockLabel(minutes: number): string {
   const hour = Math.floor(minutes / 60);
   return (hour % 12 || 12) + ":" + String(minutes % 60).padStart(2, "0") +
-    (hour < 12 ? " AM" : " PM");
+    (hour % 24 < 12 ? " AM" : " PM");
 }
