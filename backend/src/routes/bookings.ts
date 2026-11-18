@@ -2,6 +2,7 @@ import express from "express";
 import type { PoolClient } from "pg";
 import { pool } from "../db.js";
 import { currentAccount, requireRole, requireUser } from "../security/sessions.js";
+import { parsePickupChoice, verifyPickupChoice, PickupRuleError } from "../utils/pickup.js";
 
 // Each booking is owned by the authenticated student session.
 export const bookingsRouter = express.Router();
@@ -37,12 +38,16 @@ bookingsRouter.get("/", async (req, res) => {
     const result = await pool.query(
       `
       SELECT b.id, b.slot_id, b.status, b.booked_at,
+             b.pickup_kind, b.pickup_dependent_id, b.pickup_contact_id,
+             COALESCE(d.full_name, c.full_name) AS pickup_name,
              s.starts_at, s.ends_at, s.term_id,
              t.cancellation_cutoff_hours,
              (s.starts_at >= NOW() + t.cancellation_cutoff_hours * INTERVAL '1 hour') AS can_modify
       FROM bookings AS b
       JOIN appointment_slots AS s ON s.id = b.slot_id
       JOIN terms AS t ON t.id = s.term_id
+      LEFT JOIN dependent_requests AS d ON d.id = b.pickup_dependent_id
+      LEFT JOIN pickup_contacts AS c ON c.id = b.pickup_contact_id
       WHERE b.student_id = $1
         AND b.status = 'booked'
         AND s.starts_at >= NOW()
@@ -165,6 +170,11 @@ bookingsRouter.post("/", async (req, res) => {
       );
     }
 
+    // The requested picker must belong to this student and have staff approval.
+    // Defaults to self for clients that do not yet send a picker choice.
+    const choice = parsePickupChoice(req.body);
+    const pickup = await verifyPickupChoice(client, student.id, choice);
+
     // Count AFTER locking the slot, so another request to this API cannot
     // insert into the same slot between our check and insertion.
     const countResult = await client.query<{ booked_count: number }>(
@@ -187,11 +197,17 @@ bookingsRouter.post("/", async (req, res) => {
       booked_at: Date;
     }>(
       `
-      INSERT INTO bookings (student_id, slot_id, week_start)
-      VALUES ($1, $2, $3::date)
-      RETURNING id, slot_id, status, booked_at
+      INSERT INTO bookings
+        (student_id, slot_id, week_start,
+         pickup_kind, pickup_dependent_id, pickup_contact_id)
+      VALUES ($1, $2, $3::date, $4, $5, $6)
+      RETURNING id, slot_id, status, booked_at,
+                pickup_kind, pickup_dependent_id, pickup_contact_id
       `,
-      [student.id, slot.id, slot.week_start]
+      [
+        student.id, slot.id, slot.week_start,
+        pickup.pickup_kind, pickup.pickup_dependent_id, pickup.pickup_contact_id
+      ]
     );
 
     await client.query(
@@ -199,9 +215,11 @@ bookingsRouter.post("/", async (req, res) => {
       INSERT INTO booking_events
         (booking_id, actor_id, event_type, event_data)
       VALUES
-        ($1, $2, 'created', jsonb_build_object('slot_id', $3::text))
+        ($1, $2, 'created',
+          jsonb_build_object('slot_id', $3::text,
+                             'pickup_kind', $4::text))
       `,
-      [created.rows[0].id, student.id, slot.id]
+      [created.rows[0].id, student.id, slot.id, pickup.pickup_kind]
     );
 
     await client.query("COMMIT");
@@ -215,6 +233,10 @@ bookingsRouter.post("/", async (req, res) => {
       }
     }
 
+    if (error instanceof PickupRuleError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
     if (error instanceof BookingRuleError) {
       res.status(error.statusCode).json({ error: error.message });
       return;
