@@ -369,6 +369,9 @@ try {
         [studentIds]
       );
       await client.query(
+        "DELETE FROM student_notifications WHERE student_id=ANY($1::uuid[])", [studentIds]
+      );
+      await client.query(
         "DELETE FROM bookings WHERE student_id=ANY($1::uuid[])", [studentIds]
       );
       await client.query(
