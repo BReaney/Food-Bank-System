@@ -10,6 +10,7 @@ interface Booking {
   last_name: string;
   status: string;
   starts_at: string;
+  ends_at: string;
   booked_at: string;
   term_code: string;
   term_name: string;
@@ -25,6 +26,8 @@ interface Pagination {
 
 const API = "http://localhost:3001";
 const PAGE_SIZE = 25;
+type RosterStatus = "needs_review" | "booked" | "completed" |
+  "no_show" | "cancelled" | "all";
 
 function dateLabel(value: string): string {
   return new Date(value).toLocaleString("en-CA", {
@@ -37,13 +40,16 @@ function dateLabel(value: string): string {
 export default function StaffAppointments() {
   const [terms, setTerms] = useState<Term[]>([]);
   const [termId, setTermId] = useState("");
-  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [status, setStatus] = useState<RosterStatus>("needs_review");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [markingId, setMarkingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const requestId = useRef(0);
 
@@ -67,7 +73,7 @@ export default function StaffAppointments() {
       search,
       limit: String(PAGE_SIZE),
       offset: String(offset),
-      status: showAllHistory ? "all" : "booked"
+      status
     });
     if (termId) params.set("termId", termId);
 
@@ -98,7 +104,7 @@ export default function StaffAppointments() {
     } finally {
       if (!signal?.aborted && id === requestId.current) setLoading(false);
     }
-  }, [termId, search, offset, showAllHistory]);
+  }, [termId, search, offset, status]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -118,6 +124,40 @@ export default function StaffAppointments() {
     };
   }, [refresh]);
 
+  async function recordOutcome(booking: Booking, outcome: "completed" | "no_show") {
+    const title = outcome === "completed" ? "Completed" : "No-show";
+    if (!window.confirm(
+      "Mark " + booking.first_name + " " + booking.last_name +
+      "'s appointment on " + dateLabel(booking.starts_at) +
+      " as " + title + "? This is a final audit-recorded status."
+    )) return;
+
+    setMarkingId(booking.id);
+    setActionError("");
+    setSuccess("");
+    try {
+      const response = await fetch(
+        API + "/api/staff/bookings/" + booking.id + "/outcome",
+        {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ outcome })
+        }
+      );
+      const result = await response.json() as { message?: string; error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Unable to record outcome");
+      setSuccess(result.message ?? "Appointment outcome recorded");
+      await refresh();
+    } catch (e) {
+      setActionError((e as Error).message);
+      await refresh();
+    } finally {
+      setMarkingId(null);
+    }
+  }
+
   function applySearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setOffset(0);
@@ -130,6 +170,8 @@ export default function StaffAppointments() {
       <p className="auth-muted">
         Staff-only view with student names and appointment details. Updates every five
         seconds and when the page regains focus. Other students do not receive this data.
+        Once an appointment has ended, staff can mark it completed or no-show;
+        the action is recorded in its history and cannot be undone in this prototype.
       </p>
       <div className="auth-fields">
         <label>
@@ -146,11 +188,17 @@ export default function StaffAppointments() {
         </label>
         <label>
           Show
-          <select value={showAllHistory ? "all" : "booked"} onChange={event => {
-            setShowAllHistory(event.target.value === "all");
+          <select value={status} onChange={event => {
+            setStatus(event.target.value as RosterStatus);
             setOffset(0);
+            setSuccess("");
+            setActionError("");
           }}>
+            <option value="needs_review">Awaiting outcome (appointment ended)</option>
             <option value="booked">Upcoming active appointments</option>
+            <option value="completed">Completed</option>
+            <option value="no_show">No-shows</option>
+            <option value="cancelled">Cancelled</option>
             <option value="all">All booking history</option>
           </select>
         </label>
@@ -174,6 +222,8 @@ export default function StaffAppointments() {
         </div>
       </form>
 
+      {actionError && <p role="alert" className="auth-notice">{actionError}</p>}
+      {success && <p role="status" className="auth-notice">{success}</p>}
       {error && <p role="alert" className="auth-notice">{error}</p>}
       {loading && <p role="status">Refreshing bookings...</p>}
       {!loading && pagination && !error && (
@@ -189,7 +239,28 @@ export default function StaffAppointments() {
                   <strong>{booking.first_name} {booking.last_name}</strong>
                   <p>{booking.email}</p>
                   <p>{dateLabel(booking.starts_at)} — {booking.term_code}</p>
-                  <p>Status: <strong>{booking.status}</strong></p>
+                  <p>Status: <strong>{booking.status === "no_show" ? "No-show" :
+                    booking.status === "completed" ? "Completed" :
+                    booking.status === "booked" && new Date(booking.ends_at).getTime() <= Date.now()
+                      ? "Awaiting outcome" : booking.status}</strong></p>
+                  {booking.status === "booked" &&
+                    new Date(booking.ends_at).getTime() <= Date.now() && (
+                      <div className="auth-actions">
+                        <button type="button" disabled={markingId !== null}
+                          onClick={() => void recordOutcome(booking, "completed")}>
+                          Mark completed
+                        </button>
+                        <button type="button" disabled={markingId !== null}
+                          onClick={() => void recordOutcome(booking, "no_show")}>
+                          Mark no-show
+                        </button>
+                      </div>
+                    )}
+                  {booking.status === "booked" &&
+                    new Date(booking.ends_at).getTime() > Date.now() &&
+                    <p className="auth-muted">
+                      Outcome recording becomes available after the appointment ends.
+                    </p>}
                   <p>Pickup: <strong>{booking.pickup_kind === "self"
                     ? "Student collecting"
                     : booking.pickup_name ?? "Unknown"}</strong>
