@@ -30,7 +30,7 @@ const slotIds: string[] = [];
 
 interface ApiResponse { status: number; data: any; cookie: string; }
 async function request(
-  method: "GET" | "POST", path: string, cookie = "", body?: unknown
+  method: "GET" | "POST" | "PATCH", path: string, cookie = "", body?: unknown
 ): Promise<ApiResponse> {
   const response = await fetch(API + path, {
     method,
@@ -161,6 +161,17 @@ try {
   const initial = await request("POST", "/api/bookings", aCookie, { slotId: slotIds[0] });
   assert.equal(initial.status, 201, JSON.stringify(initial.data));
   const aBooking = initial.data.booking.id as string;
+  const inboxA0 = await request("GET", "/api/notifications", aCookie);
+  assert.equal(inboxA0.status, 200);
+  assert.equal(inboxA0.data.pagination.total, 1);
+  assert.equal(inboxA0.data.unreadCount, 1);
+  assert.equal(inboxA0.data.notifications[0].category, "booking_confirmed");
+  assert.equal(inboxA0.data.notifications[0].booking_id, aBooking);
+  assert.ok(inboxA0.data.notifications[0].message.includes("Vancouver time"));
+  assert.equal((await request("GET", "/api/notifications", bCookie)).data.pagination.total, 0);
+  assert.equal((await request("GET", "/api/notifications")).status, 401);
+  assert.equal((await request("GET", "/api/notifications", staffCookie)).status, 403);
+  assert.equal((await request("PATCH", "/api/notifications/read-all", staffCookie)).status, 403);
   assert.equal((await availability(bCookie, slotIds[0])).remaining_capacity, 0);
   assert.equal((await request("POST", "/api/bookings", bCookie, {
     slotId: slotIds[0]
@@ -202,6 +213,13 @@ try {
   const bBooked = await request("POST", "/api/bookings", bCookie, { slotId: slotIds[0] });
   assert.equal(bBooked.status, 201, JSON.stringify(bBooked.data));
   const bBooking = bBooked.data.booking.id as string;
+  const aAfterCancel = await request("GET", "/api/notifications", aCookie);
+  assert.deepEqual(
+    aAfterCancel.data.notifications.map((n: any) => n.category).sort(),
+    ["booking_cancelled", "booking_confirmed"]
+  );
+  assert.equal(aAfterCancel.data.pagination.total, 2);
+  assert.equal((await request("GET", "/api/notifications", bCookie)).data.pagination.total, 1);
   console.log("PASS: cancellation frees capacity and records a terminal cancelled booking");
 
   // A reschedules from slot 2 to 3. B cannot take full slot 3.
@@ -238,6 +256,21 @@ try {
   const eventsB = await request("GET", "/api/bookings/events", bCookie);
   assert.equal(eventsB.status, 200);
   assert.ok(eventsB.data.events.every((e: any) => e.booking_id !== aBooking));
+  const aNotices = await request("GET", "/api/notifications", aCookie);
+  assert.equal(aNotices.status, 200);
+  assert.equal(aNotices.data.pagination.total, 4);
+  assert.equal(aNotices.data.unreadCount, 4);
+  assert.equal(aNotices.data.notifications.filter((n: any) =>
+    n.category === "booking_rescheduled").length, 1);
+  assert.ok(aNotices.data.notifications.every((n: any) =>
+    n.booking_id !== bBooking));
+  const bNotices = await request("GET", "/api/notifications", bCookie);
+  assert.equal(bNotices.status, 200);
+  assert.deepEqual(bNotices.data.notifications.map((n: any) => n.category).sort(),
+    ["booking_confirmed", "booking_rescheduled"]);
+  assert.ok(bNotices.data.notifications.every((n: any) =>
+    n.booking_id !== aBooking && n.booking_id !== aSecond));
+  console.log("PASS: successful booking mutations produce owner-only notices, rejected mutations do not");
   console.log("PASS: atomic rescheduling and private in-app activity history");
 
   // The source appointment's 24-hour cutoff is enforced even if target is open.
@@ -259,6 +292,7 @@ try {
     "POST", "/api/bookings/" + nearId + "/reschedule",
     aCookie, { slotId: slotIds[0] }
   )).status, 422);
+  assert.equal((await request("GET", "/api/notifications", aCookie)).data.pagination.total, 4);
   console.log("PASS: 24-hour cutoff enforced for cancellation and rescheduling");
 
   const staffAfter = await request(
@@ -273,6 +307,70 @@ try {
   );
   assert.equal(staffAll.status, 200);
   assert.ok(staffAll.data.bookings.some((b: any) => b.id === aBooking && b.status === "cancelled"));
+  // Read marks cannot be used to inspect or modify another student's messages.
+  const firstNoticeId = aNotices.data.notifications[0].id as string;
+  assert.equal((await request("PATCH",
+    "/api/notifications/" + firstNoticeId + "/read", bCookie)).status, 404);
+  assert.equal((await request("PATCH",
+    "/api/notifications/" + firstNoticeId + "/read", staffCookie)).status, 403);
+  assert.equal((await request("PATCH",
+    "/api/notifications/not-a-uuid/read", aCookie)).status, 400);
+  const marked = await request("PATCH",
+    "/api/notifications/" + firstNoticeId + "/read", aCookie);
+  assert.equal(marked.status, 200);
+  assert.ok(marked.data.notification.read_at);
+  const repeat = await request("PATCH",
+    "/api/notifications/" + firstNoticeId + "/read", aCookie);
+  assert.equal(repeat.status, 200);
+  assert.equal(repeat.data.notification.read_at, marked.data.notification.read_at);
+  const unreadAfter = await request("GET", "/api/notifications?limit=1&offset=0", aCookie);
+  assert.equal(unreadAfter.status, 200);
+  assert.equal(unreadAfter.data.notifications.length, 1);
+  assert.equal(unreadAfter.data.unreadCount, 3);
+  assert.equal(unreadAfter.data.pagination.total, 4);
+  assert.equal(unreadAfter.data.pagination.hasNext, true);
+  const nextPage = await request("GET", "/api/notifications?limit=1&offset=1", aCookie);
+  assert.equal(nextPage.status, 200);
+  assert.equal(nextPage.data.notifications.length, 1);
+  assert.notEqual(nextPage.data.notifications[0].id, firstNoticeId);
+  assert.equal((await request("GET",
+    "/api/notifications?limit=0", aCookie)).status, 400);
+  assert.equal((await request("GET",
+    "/api/notifications?limit=101", aCookie)).status, 400);
+  assert.equal((await request("GET",
+    "/api/notifications?offset=-1", aCookie)).status, 400);
+  assert.equal((await request("GET",
+    "/api/notifications?limit=1&limit=2", aCookie)).status, 400);
+  const markAll = await request("PATCH", "/api/notifications/read-all", aCookie);
+  assert.equal(markAll.status, 200);
+  assert.equal(markAll.data.updatedCount, 3);
+  assert.equal((await request("PATCH", "/api/notifications/read-all", aCookie))
+    .data.updatedCount, 0);
+  const afterRead = await request("GET", "/api/notifications", aCookie);
+  assert.equal(afterRead.data.unreadCount, 0);
+  assert.equal((await request("GET", "/api/notifications", bCookie))
+    .data.unreadCount, 2);
+  console.log("PASS: private unread counts, pagination, idempotent read and mark-all");
+
+  // Exercise paging past the previous hard-coded 50-message inbox limit.
+  await pool.query(
+    `INSERT INTO student_notifications
+      (student_id, booking_id, actor_id, category, message, created_at)
+     SELECT $1, $2, $1, 'booking_confirmed',
+       'Fictional fixture notification', NOW() - i * INTERVAL '1 minute'
+     FROM generate_series(1, 55) AS i`,
+    [users[0].id, aBooking]
+  );
+  const firstPage = await request("GET", "/api/notifications?limit=25", aCookie);
+  const thirdPage = await request("GET", "/api/notifications?limit=25&offset=50", aCookie);
+  assert.equal(firstPage.status, 200);
+  assert.equal(firstPage.data.pagination.total, 59);
+  assert.equal(firstPage.data.notifications.length, 25);
+  assert.equal(thirdPage.status, 200);
+  assert.equal(thirdPage.data.notifications.length, 9);
+  assert.equal(thirdPage.data.pagination.hasNext, false);
+  assert.equal(thirdPage.data.unreadCount, 55);
+  console.log("PASS: older notifications remain retrievable after the first 50");
   console.log("PASS: staff roster updates and retains cancelled history");
   console.log("Booking management workflow tests passed.");
 } finally {
@@ -287,6 +385,7 @@ try {
           "(SELECT id FROM bookings WHERE student_id = ANY($1::uuid[]))",
           [ids]
         );
+        await cleanup.query("DELETE FROM student_notifications WHERE student_id = ANY($1::uuid[])", [ids]);
         await cleanup.query("DELETE FROM bookings WHERE student_id = ANY($1::uuid[])", [ids]);
         await cleanup.query("DELETE FROM auth_sessions WHERE profile_id = ANY($1::uuid[])", [ids]);
         await cleanup.query("DELETE FROM auth_credentials WHERE profile_id = ANY($1::uuid[])", [ids]);
