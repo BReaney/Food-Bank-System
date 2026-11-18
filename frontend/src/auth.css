@@ -345,3 +345,11 @@
   .weekly-picker-navigation { justify-content: center; }
   .weekly-picker-navigation strong { order: -1; width: 100%; }
 }
+
+
+/* Use the available desktop width for the seven-day planner. Narrow devices
+   retain horizontal scrolling; this does not resize other account screens. */
+.auth-page:has(.weekly-planner-wrap) {
+  width: min(100%, 1126px);
+  padding-inline: clamp(12px, 2.2vw, 22px);
+}
