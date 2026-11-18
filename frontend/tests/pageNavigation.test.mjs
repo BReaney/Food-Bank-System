@@ -42,9 +42,7 @@ test("cross-role, old, unknown and malformed URLs fall back to safe role pages",
     for (const hash of ["", "#", "#/dashboard", "#/staff/nonexistent",
       "#/student/nonexistent", "#/student/appointments?x=1",
       "#/student/../../records", "#/STAFF/records"]) {
-      assert.equal(resolvePage(role, hash)?.id,
-        hash === "#/student/nonexistent" && role === "student"
-          ? defaultPage.id : defaultPage.id);
+      assert.equal(resolvePage(role, hash)?.id, defaultPage.id);
       assert.equal(canonicalPageHash(role, hash), pageHash(role, defaultPage.id));
     }
   }
