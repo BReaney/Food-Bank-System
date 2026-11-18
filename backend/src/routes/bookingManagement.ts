@@ -359,7 +359,7 @@ bookingManagementRouter.post("/:bookingId/reschedule", async (req, res) => {
 // contact/dependent row is held FOR SHARE for the entire update.
 bookingManagementRouter.patch("/:bookingId/pickup", async (req, res) => {
   const bookingId = req.params.bookingId;
-  if (!uuidPattern.test(bookingId ?? "")) {
+  if (typeof bookingId !== "string" || !uuidPattern.test(bookingId)) {
     res.status(400).json({ error: "Invalid booking identifier" });
     return;
   }
