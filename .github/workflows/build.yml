@@ -6,6 +6,7 @@ on:
       - main
       - "feature/**"
       - "chore/**"
+      - "docs/**"
   pull_request:
 
 jobs:
