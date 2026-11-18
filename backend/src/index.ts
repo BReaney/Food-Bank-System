@@ -103,12 +103,24 @@ interface SlotRow {
 // Read-only availability contains no student identities. Staff-generated
 // schedules may have more than 50 future slots; optional month filtering
 // lets students browse each part of a long semester.
+// Student-safe availability. Fetch a single Vancouver-local calendar
+// week for the planner, or retain the previous month filter for compatibility.
+function validCalendarWeek(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + "T12:00:00Z");
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value &&
+    date.getUTCDay() === 1;
+}
+
 app.get("/api/slots", requireUser, async (req, res) => {
   const month = req.query.month;
-  if (month !== undefined &&
-      (typeof month !== "string" ||
-       !/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month))) {
-    res.status(400).json({ error: "month must be YYYY-MM" });
+  const week = req.query.week;
+  if ((month !== undefined &&
+       (typeof month !== "string" ||
+        !/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month))) ||
+      (week !== undefined && !validCalendarWeek(week)) ||
+      (week !== undefined && month !== undefined)) {
+    res.status(400).json({ error: "Use a Monday week=YYYY-MM-DD or month=YYYY-MM, not both" });
     return;
   }
   try {
@@ -123,9 +135,13 @@ app.get("/api/slots", requireUser, async (req, res) => {
            AND
            (starts_at AT TIME ZONE 'America/Vancouver')::date <
              (($1::text || '-01')::date + INTERVAL '1 month')))
+        AND ($2::date IS NULL OR
+          ((starts_at AT TIME ZONE 'America/Vancouver')::date >= $2::date
+           AND (starts_at AT TIME ZONE 'America/Vancouver')::date <
+             ($2::date + INTERVAL '7 days')))
       ORDER BY starts_at ASC, id ASC
       LIMIT 501
-    `, [month ?? null]);
+    `, [month ?? null, week ?? null]);
     res.json({ slots: result.rows.slice(0, 500), hasMore: result.rows.length > 500 });
   } catch (error) {
     console.error("Failed to load appointment slots:", error);
