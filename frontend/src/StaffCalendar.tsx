@@ -55,6 +55,7 @@ export default function StaffCalendar(){
   const [terms,setTerms]=useState<Term[]>([]);
   const [termId,setTermId]=useState("");
   const [slots,setSlots]=useState<Slot[]>([]);
+  const [slotMonth,setSlotMonth]=useState("");
   const [hasMore,setHasMore]=useState(false);
   const [termForm,setTermForm]=useState<FormTerm>({...EMPTY_TERM});
   const [editingTermId,setEditingTermId]=useState<string|null>(null);
@@ -80,14 +81,15 @@ export default function StaffCalendar(){
       api<{terms:Term[]}>("/api/staff/calendar/terms"),
       termId
         ? api<{slots:Slot[];hasMore:boolean}>(
-            "/api/staff/calendar/slots?termId="+encodeURIComponent(termId))
+            "/api/staff/calendar/slots?termId="+encodeURIComponent(termId)+
+            (slotMonth?"&month="+encodeURIComponent(slotMonth):""))
         : Promise.resolve({slots:[],hasMore:false})
     ]);
     setTerms(t.terms);
     setSlots(s.slots);
     setHasMore(s.hasMore);
     setTermId(current=>current||t.terms[0]?.id||"");
-  },[termId]);
+  },[termId,slotMonth]);
 
   useEffect(()=>{
     let alive=true;
@@ -282,6 +284,7 @@ export default function StaffCalendar(){
             setFromDate(term?.starts_on??"");
             setToDate(term?.ends_on??"");
             setEditingSlotId(null);
+            setSlotMonth("");
             setMessage("");setError("");
           }}>
             <option value="">Select term</option>
@@ -374,13 +377,20 @@ export default function StaffCalendar(){
         </form>
 
         <h3>4. Review scheduled slots</h3>
+        <label className="appointment-choice">
+          Filter managed slots by Vancouver-local month
+          <input type="month" value={slotMonth}
+            onChange={e=>setSlotMonth(e.target.value)}/>
+        </label>
+        {slotMonth&&<button type="button" onClick={()=>setSlotMonth("")}>
+          Show all months
+        </button>}
         <p className="auth-muted">
           Students see times, capacity and availability only; this management
           list contains no student identities. For each slot, booked places
           are counted from active reservations.
         </p>
-        {hasMore&&<p role="alert">Showing first 500 slots. Narrow the term or use
-          database reporting for additional slots.</p>}
+        {hasMore&&<p role="alert">Showing first 500 slots. Filter by month to manage additional dates.</p>}
         {slots.length===0?<p>No slots configured for this term.</p>:(
           <ul className="auth-list">
             {slots.map(slot=><li key={slot.id}>
