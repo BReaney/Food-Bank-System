@@ -398,17 +398,17 @@ bookingManagementRouter.patch("/:bookingId/pickup", async (req, res) => {
     }
 
     await client.query(
-      \`UPDATE bookings SET pickup_kind=$1, pickup_dependent_id=$2,
-                          pickup_contact_id=$3 WHERE id=$4\`,
+      `UPDATE bookings SET pickup_kind=$1, pickup_dependent_id=$2,
+                          pickup_contact_id=$3 WHERE id=$4`,
       [
         pickup.pickup_kind, pickup.pickup_dependent_id,
         pickup.pickup_contact_id, bookingId
       ]
     );
     await client.query(
-      \`INSERT INTO booking_events (booking_id, actor_id, event_type, event_data)
+      `INSERT INTO booking_events (booking_id, actor_id, event_type, event_data)
        VALUES ($1,$2,'pickup_updated',
-         jsonb_build_object('pickup_kind',$3::text,'reason','student_selected'))\`,
+         jsonb_build_object('pickup_kind',$3::text,'reason','student_selected'))`,
       [bookingId, studentId, pickup.pickup_kind]
     );
     await client.query("COMMIT");
