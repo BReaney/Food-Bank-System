@@ -51,10 +51,10 @@ async function recordEvent(
   action: string, from: string | null, to: string | null
 ): Promise<void> {
   await client.query(
-    \`INSERT INTO household_events
+    `INSERT INTO household_events
       (student_id, actor_id, record_type, record_id,
        action, previous_status, new_status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)\`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
     [studentId, actorId, type, recordId, action, from, to]
   );
 }
@@ -67,11 +67,11 @@ householdRouter.get("/consent", (_req, res) => {
 householdRouter.get("/dependents", async (req, res) => {
   try {
     const result = await pool.query(
-      \`SELECT id, full_name, relationship, status, reviewed_at,
+      `SELECT id, full_name, relationship, status, reviewed_at,
               created_at, updated_at
        FROM dependent_requests
        WHERE student_id = $1 AND removed_at IS NULL
-       ORDER BY created_at DESC, id DESC\`,
+       ORDER BY created_at DESC, id DESC`,
       [currentAccount(req).id]
     );
     res.json({ dependents: result.rows });
@@ -92,9 +92,9 @@ householdRouter.post("/dependents", async (req, res) => {
   try {
     const dependent = await transaction(async client => {
       const result = await client.query(
-        \`INSERT INTO dependent_requests (student_id, full_name, relationship)
+        `INSERT INTO dependent_requests (student_id, full_name, relationship)
          VALUES ($1,$2,$3)
-         RETURNING id, full_name, relationship, status, created_at\`,
+         RETURNING id, full_name, relationship, status, created_at`,
         [studentId, fullName.trim(), relationship]
       );
       await recordEvent(
@@ -162,12 +162,12 @@ function validContact(body: any): boolean {
 householdRouter.get("/contacts", async (req, res) => {
   try {
     const result = await pool.query(
-      \`SELECT id, full_name, contact_method, contact_value,
+      `SELECT id, full_name, contact_method, contact_value,
               status, consent_version, consent_text, consent_given_at,
               reviewed_at, created_at, updated_at
        FROM pickup_contacts
        WHERE student_id=$1 AND removed_at IS NULL
-       ORDER BY created_at DESC, id DESC\`,
+       ORDER BY created_at DESC, id DESC`,
       [currentAccount(req).id]
     );
     res.json({ contacts: result.rows });
@@ -188,12 +188,12 @@ householdRouter.post("/contacts", async (req, res) => {
   try {
     const contact = await transaction(async client => {
       const result = await client.query(
-        \`INSERT INTO pickup_contacts
+        `INSERT INTO pickup_contacts
           (student_id, full_name, contact_method, contact_value,
            consent_version, consent_text)
          VALUES ($1,$2,$3,$4,$5,$6)
          RETURNING id, full_name, contact_method, contact_value, status,
-                   consent_version, consent_given_at\`,
+                   consent_version, consent_given_at`,
         [
           studentId, fullName.trim(), contactMethod, contactValue.trim(),
           CONSENT_VERSION, CONSENT_TEXT
@@ -228,14 +228,14 @@ householdRouter.put("/contacts/:id", async (req, res) => {
       );
       if (!before.rows[0]) throw new PickupRuleError(404, "Pickup contact not found");
       const updated = await client.query(
-        \`UPDATE pickup_contacts SET
+        `UPDATE pickup_contacts SET
            full_name=$1, contact_method=$2, contact_value=$3,
            consent_version=$4, consent_text=$5, consent_given_at=NOW(),
            status='pending', reviewed_by=NULL, reviewed_at=NULL,
            updated_at=NOW()
          WHERE id=$6 RETURNING
            id, full_name, contact_method, contact_value,
-           status, consent_version, consent_given_at\`,
+           status, consent_version, consent_given_at`,
         [
           fullName.trim(), contactMethod, contactValue.trim(),
           CONSENT_VERSION, CONSENT_TEXT, id
