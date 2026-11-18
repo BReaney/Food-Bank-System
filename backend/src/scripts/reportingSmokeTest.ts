@@ -261,8 +261,7 @@ try {
   assert.ok(csv.data.includes('"section","period","metric","value"'));
   assert.ok(csv.data.includes('"summary","","appointments_completed","5"'));
   assert.ok(csv.data.includes('"summary","","distinct_students_served","3"'));
-  assert.ok(csv.data.includes('"metadata","","term_name","\\'=2+2"') ||
-    csv.data.includes('"metadata","","term_name","\\'=2+2"'.replace("\\","")));
+  assert.ok(csv.data.includes(`"metadata","","term_name","'=2+2"`));
   for(const email of emails) assert.ok(!csv.data.includes(email));
   assert.ok(!csv.data.includes("Fictional Third Party"));
   console.log("PASS: staff outcome flows into report and CSV; spreadsheet formula escaped, no personal data");
