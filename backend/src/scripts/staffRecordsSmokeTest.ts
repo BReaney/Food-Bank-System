@@ -123,8 +123,11 @@ try {
   );
   bookingIds = bookings.rows.map(row => row.id);
   await pool.query(
-    "INSERT INTO booking_events (booking_id,actor_id,event_type) VALUES " +
-    "($1,$3,'created'),($1,$3,'completed'),($2,$3,'created'),($2,$3,'cancelled')",
+    "INSERT INTO booking_events (booking_id,actor_id,event_type,occurred_at) VALUES " +
+    "($1,$3,'created','2024-01-20T20:00:00Z')," +
+    "($1,$3,'completed','2024-02-05T19:00:00Z')," +
+    "($2,$3,'created','2024-01-25T20:00:00Z')," +
+    "($2,$3,'cancelled','2024-02-01T20:00:00Z')",
     [bookingIds[0], bookingIds[1], studentId]
   );
 
