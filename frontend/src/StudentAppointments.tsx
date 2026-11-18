@@ -17,6 +17,10 @@ interface Booking {
   status: string;
   can_modify: boolean;
   cancellation_cutoff_hours: number;
+  pickup_kind: "self" | "dependent" | "third_party";
+  pickup_dependent_id: string | null;
+  pickup_contact_id: string | null;
+  pickup_name: string | null;
 }
 interface HistoryRecord {
   id: string;
@@ -32,10 +36,31 @@ interface EventRecord {
     from_starts_at?: string;
     to_starts_at?: string;
     starts_at?: string;
+    reason?: string;
   };
 }
 
+interface PickupOption {
+  id: string;
+  full_name: string;
+  status: "pending" | "confirmed" | "denied";
+}
 const API = "http://localhost:3001";
+
+function pickupPayload(value: string): Record<string, string> {
+  if (value === "self") return { pickupKind: "self" };
+  const [pickupKind, pickupId] = value.split(":");
+  return { pickupKind, pickupId };
+}
+function bookingPickupValue(booking: Booking): string {
+  if (booking.pickup_kind === "dependent" && booking.pickup_dependent_id) {
+    return "dependent:" + booking.pickup_dependent_id;
+  }
+  if (booking.pickup_kind === "third_party" && booking.pickup_contact_id) {
+    return "third_party:" + booking.pickup_contact_id;
+  }
+  return "self";
+}
 const REFRESH_MS = 5000;
 
 function dateLabel(value: string): string {
@@ -68,6 +93,10 @@ export default function StudentAppointments() {
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [choices, setChoices] = useState<Record<string, string>>({});
+  const [pickupChoices, setPickupChoices] = useState<Record<string, string>>({});
+  const [newPickupChoice, setNewPickupChoice] = useState("self");
+  const [dependents, setDependents] = useState<PickupOption[]>([]);
+  const [contacts, setContacts] = useState<PickupOption[]>([]);
   const [busy, setBusy] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -78,11 +107,13 @@ export default function StudentAppointments() {
   const refresh = useCallback(async (signal?: AbortSignal) => {
     const requestId = ++requestNumber.current;
     try {
-      const [slotResult, bookingResult, historyResult, eventResult] = await Promise.all([
+      const [slotResult, bookingResult, historyResult, eventResult, d, c] = await Promise.all([
         fetchData<{ slots: Slot[] }>("/api/slots", signal),
         fetchData<{ bookings: Booking[] }>("/api/bookings", signal),
         fetchData<{ bookings: HistoryRecord[] }>("/api/bookings/history", signal),
-        fetchData<{ events: EventRecord[] }>("/api/bookings/events", signal)
+        fetchData<{ events: EventRecord[] }>("/api/bookings/events", signal),
+        fetchData<{ dependents: PickupOption[] }>("/api/household/dependents", signal),
+        fetchData<{ contacts: PickupOption[] }>("/api/household/contacts", signal)
       ]);
       if (signal?.aborted || requestId !== requestNumber.current) return;
 
@@ -90,6 +121,8 @@ export default function StudentAppointments() {
       setBookings(bookingResult.bookings);
       setHistory(historyResult.bookings);
       setEvents(eventResult.events);
+      setDependents(d.dependents);
+      setContacts(c.contacts);
       setError("");
     } catch (e) {
       if (!signal?.aborted && requestId === requestNumber.current) {
@@ -118,13 +151,13 @@ export default function StudentAppointments() {
     };
   }, [refresh]);
 
-  async function mutate(path: string, body?: Record<string, string>) {
+  async function mutate(path: string, body?: Record<string, string>, method: "POST" | "PATCH" = "POST") {
     setBusy(true);
     setMessage("");
     setActionError("");
     try {
       const response = await fetch(API + path, {
-        method: "POST",
+        method,
         credentials: "include",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
@@ -142,6 +175,7 @@ export default function StudentAppointments() {
         typeof data.message === "string" ? data.message : "Appointment saved";
       setMessage(success);
       setChoices({});
+      setPickupChoices({});
     } catch (e) {
       setActionError((e as Error).message);
     } finally {
@@ -173,6 +207,28 @@ export default function StudentAppointments() {
           A slot may contain multiple places; it becomes full when its capacity is used.
           Other students' identities are never shown here.
         </p>
+
+        <label className="appointment-choice">
+          Who will collect the hamper?
+          <select value={newPickupChoice} disabled={busy}
+            onChange={e => setNewPickupChoice(e.target.value)}>
+            <option value="self">I will collect it myself</option>
+            {dependents.filter(d => d.status === "confirmed").map(d => (
+              <option key={d.id} value={"dependent:" + d.id}>
+                Confirmed dependent: {d.full_name}
+              </option>
+            ))}
+            {contacts.filter(c => c.status === "confirmed").map(c => (
+              <option key={c.id} value={"third_party:" + c.id}>
+                Approved third-party contact: {c.full_name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="auth-muted">
+          Only confirmed people can be selected. Third-party contacts require
+          your recorded consent; approval is checked again when you book.
+        </p>
         <ul className="auth-list">
           {slots.map(slot => {
             const alreadyBooked = bookings.some(b => b.slot_id === slot.id);
@@ -189,7 +245,10 @@ export default function StudentAppointments() {
                 <button
                   type="button"
                   disabled={busy || !available || alreadyBooked}
-                  onClick={() => void mutate("/api/bookings", { slotId: slot.id })}
+                  onClick={() => void mutate(
+                    "/api/bookings",
+                    { slotId: slot.id, ...pickupPayload(newPickupChoice) }
+                  )}
                 >
                   {alreadyBooked ? "Already booked" : full ? "Full" : "Book this slot"}
                 </button>
@@ -213,11 +272,52 @@ export default function StudentAppointments() {
               <li key={booking.id}>
                 <strong>{dateLabel(booking.starts_at)}</strong>
                 <p>Status: {booking.status}</p>
+                <p>
+                  Pickup: <strong>
+                    {booking.pickup_kind === "self"
+                      ? "Student collecting"
+                      : (booking.pickup_name ?? "Previously authorized pickup person")}
+                  </strong>
+                </p>
                 {booking.can_modify ? (
                   <>
                     <div className="auth-actions">
                       <button type="button" disabled={busy} onClick={() => cancel(booking)}>
                         Cancel appointment
+                      </button>
+                    </div>
+                    <label className="appointment-choice">
+                      Change authorized pickup person
+                      <select disabled={busy}
+                        value={pickupChoices[booking.id] ?? bookingPickupValue(booking)}
+                        onChange={e => setPickupChoices(previous => ({
+                          ...previous, [booking.id]: e.target.value
+                        }))}>
+                        <option value="self">Student collecting</option>
+                        {dependents.filter(d => d.status === "confirmed").map(d => (
+                          <option value={"dependent:" + d.id} key={d.id}>
+                            Confirmed dependent: {d.full_name}
+                          </option>
+                        ))}
+                        {contacts.filter(c => c.status === "confirmed").map(c => (
+                          <option value={"third_party:" + c.id} key={c.id}>
+                            Approved contact: {c.full_name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="auth-actions">
+                      <button type="button"
+                        disabled={busy ||
+                          (pickupChoices[booking.id] ?? bookingPickupValue(booking)) ===
+                            bookingPickupValue(booking)}
+                        onClick={() => void mutate(
+                          "/api/bookings/" + booking.id + "/pickup",
+                          pickupPayload(pickupChoices[booking.id] ??
+                            bookingPickupValue(booking)),
+                          "PATCH"
+                        )}>
+                        Update pickup authorization
                       </button>
                     </div>
                     <label className="appointment-choice">
@@ -287,6 +387,9 @@ export default function StudentAppointments() {
             {events.slice(0, 10).map(event => (
               <li key={event.id}>
                 <strong>{event.event_type}</strong> — {dateLabel(event.occurred_at)}
+                {event.event_type === "pickup_updated" &&
+                  <p>Pickup authorization changed{event.event_data.reason
+                    ? " (" + event.event_data.reason.replaceAll("_", " ") + ")" : ""}.</p>}
                 {event.event_type === "rescheduled" && event.event_data.to_starts_at &&
                   <p>New appointment: {dateLabel(event.event_data.to_starts_at)}</p>}
               </li>
