@@ -258,6 +258,11 @@ try {
   const opened=reopening.body.slots.find((x:any)=>x.id===slotId);
   assert.equal(opened.is_open,true);
   assert.equal(opened.booked_count,0);
+  // Reopening never rewrites the historical dates of cancelled bookings.
+  expectStatus(await request("PUT",
+    "/api/staff/calendar/slots/"+slotId,staff,{
+      startsAtLocal:day+"T16:00",durationMinutes:20,capacity:2
+    }),409);
   expectStatus(await request("POST",
     "/api/staff/calendar/slots/"+slotId+"/reopen",staff),409);
   // Term policy may be edited when no active bookings remain.
