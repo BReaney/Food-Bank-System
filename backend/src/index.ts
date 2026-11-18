@@ -7,6 +7,7 @@ import { staffBookingsRouter } from "./routes/staffBookings.js";
 import { householdRouter } from "./routes/household.js";
 import { staffHouseholdRouter } from "./routes/staffHousehold.js";
 import { staffCalendarRouter } from "./routes/staffCalendar.js";
+import { staffReportsRouter } from "./routes/staffReports.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { authRouter } from "./routes/auth.js";
 import { profileRouter } from "./routes/profiles.js";
@@ -162,6 +163,7 @@ app.use("/api/staff/bookings", staffBookingsRouter);
 app.use("/api/household", householdRouter);
 app.use("/api/staff/household", staffHouseholdRouter);
 app.use("/api/staff/calendar", staffCalendarRouter);
+app.use("/api/staff/reports", staffReportsRouter);
 app.use("/api/notifications", notificationsRouter);
 
 app.listen(PORT, () => {
