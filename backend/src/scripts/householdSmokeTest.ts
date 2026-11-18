@@ -60,6 +60,27 @@ async function login(email: string, pass: string): Promise<string> {
   assert.ok(result.cookie.startsWith("foodbank_session="));
   return result.cookie;
 }
+// Change only this suite's fictional slot to exercise near-cutoff and
+// in-progress behavior without waiting days. No production slot is touched.
+async function moveFixtureAppointment(slotId: string, bookingId: string,
+                                      offset: string) {
+  await pool.query(
+    `UPDATE appointment_slots SET
+      starts_at = NOW() + $2::interval,
+      ends_at = NOW() + $2::interval + INTERVAL '20 minutes'
+      WHERE id=$1`,
+    [slotId, offset]
+  );
+  await pool.query(
+    `UPDATE bookings
+      SET week_start = date_trunc(
+        'week', (SELECT starts_at AT TIME ZONE 'America/Vancouver'
+                 FROM appointment_slots WHERE id=$1)
+      )::date WHERE id=$2`,
+    [slotId,bookingId]
+  );
+}
+
 async function staffChange(type: "dependents" | "contacts", id: string,
                            cookie: string, status: string) {
   return request("PUT", "/api/staff/household/" + type + "/" + id + "/status",
@@ -223,6 +244,38 @@ try {
   const assigned = await request("PATCH", "/api/bookings/" + bookingId + "/pickup",
     a, { pickupKind: "third_party", pickupId: contactId });
   assert.equal(assigned.status, 200, JSON.stringify(assigned.body));
+
+  // All STUDENT appointment edits (including indirect contact edits/removal)
+  // must stop inside the term's 24-hour cancellation cutoff.
+  await moveFixtureAppointment(slotId, bookingId, "23 hours");
+  const directLatePickup = await request("PATCH",
+    "/api/bookings/" + bookingId + "/pickup", a, {pickupKind:"self"});
+  assert.equal(directLatePickup.status, 422, JSON.stringify(directLatePickup.body));
+  assert.equal((await request("POST",
+    "/api/bookings/" + bookingId + "/cancel", a)).status, 422);
+  assert.equal((await request("POST",
+    "/api/bookings/" + bookingId + "/reschedule", a,
+    {slotId: randomUUID()})).status, 422);
+  const lateContactEdit = await request("PUT",
+    "/api/household/contacts/" + contactId, a, {
+      fullName:"Fictional Late Change", contactMethod:"phone",
+      contactValue:"250-555-0100", consentAccepted:true
+    });
+  assert.equal(lateContactEdit.status, 422, JSON.stringify(lateContactEdit.body));
+  const lateContactRemove = await request(
+    "DELETE","/api/household/contacts/" + contactId, a
+  );
+  assert.equal(lateContactRemove.status, 422, JSON.stringify(lateContactRemove.body));
+  const stillApproved = await request("GET", "/api/household/contacts", a);
+  assert.equal(stillApproved.body.contacts[0].status, "confirmed");
+  assert.equal(stillApproved.body.contacts[0].full_name, "Fictional Updated");
+  const unchanged = await pool.query<{pickup_kind:string}>(
+    "SELECT pickup_kind FROM bookings WHERE id=$1",[bookingId]
+  );
+  assert.equal(unchanged.rows[0].pickup_kind, "third_party");
+  console.log("PASS: 24-hour cutoff covers cancellation, reschedule, direct pickup and contact edit/removal");
+  await moveFixtureAppointment(slotId, bookingId, "15 days");
+
   const rejected = await staffChange("contacts", contactId, staff, "denied");
   assert.equal(rejected.status, 200);
   assert.equal(rejected.body.affectedBookings, 1);
@@ -231,10 +284,39 @@ try {
   assert.equal((await request("PATCH", "/api/bookings/" + bookingId + "/pickup",
     a, { pickupKind: "third_party", pickupId: contactId })).status, 403);
 
+  // Staff approval withdrawal remains an emergency/safety override even
+  // once an appointment has STARTED (student edits remain forbidden).
+  assert.equal((await staffChange("contacts", contactId, staff, "confirmed")).status, 200);
+  assert.equal((await request("PATCH", "/api/bookings/" + bookingId + "/pickup",
+    a, { pickupKind: "third_party", pickupId: contactId })).status, 200);
+  await moveFixtureAppointment(slotId, bookingId, "-5 minutes");
+  const staffWithdrawal = await staffChange("contacts", contactId, staff, "denied");
+  assert.equal(staffWithdrawal.status, 200, JSON.stringify(staffWithdrawal.body));
+  assert.equal(staffWithdrawal.body.affectedBookings, 1);
+  const afterWithdrawal = await pool.query<{pickup_kind:string}>(
+    "SELECT pickup_kind FROM bookings WHERE id=$1",[bookingId]
+  );
+  assert.equal(afterWithdrawal.rows[0].pickup_kind, "self");
+  await moveFixtureAppointment(slotId, bookingId, "15 days");
+  console.log("PASS: staff revocation clears in-progress booking authorizations");
+
   const attachDependent = await request("PATCH",
     "/api/bookings/" + bookingId + "/pickup", a,
     { pickupKind: "dependent", pickupId: dependentId });
   assert.equal(attachDependent.status, 200, JSON.stringify(attachDependent.body));
+  await moveFixtureAppointment(slotId, bookingId, "23 hours");
+  const lateDependentRemoval = await request("DELETE",
+    "/api/household/dependents/" + dependentId, a);
+  assert.equal(lateDependentRemoval.status, 422,
+    JSON.stringify(lateDependentRemoval.body));
+  const retained = await request("GET", "/api/household/dependents", a);
+  assert.ok(retained.body.dependents.some((d:any) =>
+    d.id === dependentId && d.status === "confirmed"));
+  const retainedBooking = await pool.query<{pickup_kind:string}>(
+    "SELECT pickup_kind FROM bookings WHERE id=$1", [bookingId]
+  );
+  assert.equal(retainedBooking.rows[0].pickup_kind, "dependent");
+  await moveFixtureAppointment(slotId, bookingId, "15 days");
   const removedDependent = await request("DELETE",
     "/api/household/dependents/" + dependentId, a);
   assert.equal(removedDependent.status, 200);
