@@ -6,6 +6,7 @@ import StaffEnrollment from "./StaffEnrollment";
 import StaffDirectory from "./StaffDirectory";
 import StaffAppointments from "./StaffAppointments";
 import StaffCalendar from "./StaffCalendar";
+import StaffReports from "./StaffReports";
 import StudentNotifications from "./StudentNotifications";
 import StudentAppointments from "./StudentAppointments";
 import StudentHousehold from "./StudentHousehold";
@@ -228,6 +229,7 @@ function App() {
             </>
           ) : (
             <>
+            <StaffReports />
             <StaffCalendar />
             <StaffAppointments />
             <StaffHousehold />
