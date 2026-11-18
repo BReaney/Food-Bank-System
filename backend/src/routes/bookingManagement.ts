@@ -70,11 +70,11 @@ function ensureCanChange(booking: BookedAppointment): void {
     throw new RuleError(409, "Only active bookings may be changed");
   }
   if (
-    booking.starts_at.getTime() - Date.now() <
+    booking.starts_at.getTime() - Date.now() <=
     booking.cancellation_cutoff_hours * 60 * 60 * 1000
   ) {
     throw new RuleError(
-      422, "The cancellation/rescheduling cutoff for this appointment has passed"
+      422, "The change cutoff for this appointment has passed (cancellation, rescheduling and pickup changes)"
     );
   }
 }
