@@ -108,7 +108,7 @@ try {
     staff,termChanged),200);
 
   const fromDate=startDate(22);
-  const toDate=startDate(50);
+  const toDate=startDate(43);
   const weekday=new Date(fromDate+"T12:00:00Z").getUTCDay();
   const generate={
     fromDate,toDate,weekdays:[weekday],startTime:"09:00",endTime:"10:00",
@@ -133,7 +133,7 @@ try {
   console.log("PASS: term management and atomic weekly slot generation, overlap rejection");
 
   // Create a separate fixture appointment later than the generated range.
-  const day=startDate(60);
+  const day=startDate(45);
   const originalLocal=day+"T14:00";
   const targetLocal=day+"T15:00";
   const slotCreated=await request("POST","/api/staff/calendar/slots",staff,{
@@ -191,7 +191,7 @@ try {
     startsAtLocal:originalLocal,durationMinutes:20,capacity:1
   }),409);
   expectStatus(await request("PUT","/api/staff/calendar/slots/"+slotId,staff,{
-    startsAtLocal:startDate(67)+"T14:00",durationMinutes:20,capacity:2
+    startsAtLocal:startDate(52)+"T14:00",durationMinutes:20,capacity:2
   }),409);
   expectStatus(await request("PUT","/api/staff/calendar/terms/"+termId,staff,{
     ...termChanged,maximumNoticeDays:90
