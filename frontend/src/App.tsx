@@ -4,6 +4,8 @@ import "./auth.css";
 import StudentEligibility from "./StudentEligibility";
 import StaffEnrollment from "./StaffEnrollment";
 import StaffDirectory from "./StaffDirectory";
+import StaffAppointments from "./StaffAppointments";
+import StudentAppointments from "./StudentAppointments";
 
 interface Profile {
   id: string;
@@ -11,19 +13,6 @@ interface Profile {
   last_name: string;
   email: string;
   role: "student" | "staff";
-}
-interface Slot {
-  id: string;
-  starts_at: string;
-  capacity: number;
-  is_open: boolean;
-  remaining_capacity: number;
-}
-interface Booking {
-  id: string;
-  slot_id: string;
-  starts_at: string;
-  status: string;
 }
 type Message = { text: string; isError: boolean };
 const API = "http://localhost:3001";
@@ -45,14 +34,6 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-function dateLabel(value: string): string {
-  return new Date(value).toLocaleString("en-CA", {
-    timeZone: "America/Vancouver",
-    dateStyle: "medium",
-    timeStyle: "short"
-  });
-}
-
 function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -63,8 +44,6 @@ function App() {
   const [password, setPassword] = useState("");
   const [editingFirst, setEditingFirst] = useState("");
   const [editingLast, setEditingLast] = useState("");
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
@@ -81,29 +60,9 @@ function App() {
     }
   }
 
-  async function refreshStudentData() {
-    try {
-      const [s, b] = await Promise.all([
-        api<{ slots: Slot[] }>("/api/slots"),
-        api<{ bookings: Booking[] }>("/api/bookings")
-      ]);
-      setSlots(s.slots);
-      setBookings(b.bookings);
-    } catch (error) {
-      setMessage({ text: (error as Error).message, isError: true });
-    }
-  }
-
   useEffect(() => {
     void refreshSession();
   }, []);
-
-  useEffect(() => {
-    if (!profile) return;
-    if (profile.role === "student") {
-      void refreshStudentData();
-    }
-  }, [profile?.id, profile?.role]);
 
   async function submitCredentials(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -158,26 +117,6 @@ function App() {
     try {
       await api("/api/auth/logout", { method: "POST" });
       setProfile(null);
-      setSlots([]);
-      setBookings([]);
-    } catch (error) {
-      setMessage({ text: (error as Error).message, isError: true });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function book(slotId: string) {
-    setBusy(true);
-    setMessage(null);
-    try {
-      await api("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slotId })
-      });
-      setMessage({ text: "Booking saved in PostgreSQL.", isError: false });
-      await refreshStudentData();
     } catch (error) {
       setMessage({ text: (error as Error).message, isError: true });
     } finally {
@@ -279,43 +218,11 @@ function App() {
           {profile.role === "student" ? (
             <>
               <StudentEligibility />
-              <section className="auth-panel">
-                <h2>Upcoming appointment slots</h2>
-                <ul className="auth-list">
-                  {slots.map(slot => {
-                    const alreadyBooked = bookings.some(b => b.slot_id === slot.id);
-                    const available = slot.is_open && slot.remaining_capacity > 0;
-                    return (
-                      <li key={slot.id}>
-                        <strong>{dateLabel(slot.starts_at)}</strong>
-                        <p>{available
-                          ? String(slot.remaining_capacity) + " of " + String(slot.capacity) + " spaces available"
-                          : "Closed or full"}</p>
-                        <button type="button"
-                          disabled={busy || !available || alreadyBooked}
-                          onClick={() => void book(slot.id)}>
-                          {alreadyBooked ? "Already booked" : "Book this slot"}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {slots.length === 0 && <p>No upcoming slots currently configured.</p>}
-              </section>
-              <section className="auth-panel">
-                <h2>My upcoming bookings</h2>
-                <ul className="auth-list">
-                  {bookings.map(booking => (
-                    <li key={booking.id}>
-                      {dateLabel(booking.starts_at)} — {booking.status}
-                    </li>
-                  ))}
-                </ul>
-                {bookings.length === 0 && <p>No appointments booked yet.</p>}
-              </section>
+              <StudentAppointments />
             </>
           ) : (
             <>
+            <StaffAppointments />
             <StaffEnrollment />
             <StaffDirectory />
             </>

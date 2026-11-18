@@ -30,42 +30,58 @@ export default function StaffDirectory() {
 
   useEffect(() => {
     const controller = new AbortController();
+    let running = false;
     setLoading(true);
     setError("");
     const params = new URLSearchParams({
       search, limit: String(PAGE_SIZE), offset: String(offset)
     });
 
-    void (async () => {
-      try {
-        const response = await fetch(
-          API + "/api/staff/profiles?" + params.toString(),
-          { credentials: "include", signal: controller.signal }
-        );
-        if (!response.ok) {
-          const data = await response.json() as { error?: string };
-          throw new Error(data.error || "Unable to load the student directory");
+    const refresh = () => {
+      if (document.hidden || running || controller.signal.aborted) return;
+      running = true;
+      void (async () => {
+        try {
+          const response = await fetch(
+            API + "/api/staff/profiles?" + params.toString(),
+            { credentials: "include", cache: "no-store", signal: controller.signal }
+          );
+          if (!response.ok) {
+            const data = await response.json() as { error?: string };
+            throw new Error(data.error || "Unable to load the student directory");
+          }
+          const data = await response.json() as {
+            students: Student[]; pagination: PageInfo
+          };
+          if (controller.signal.aborted) return;
+          if (data.pagination.total > 0 && data.students.length === 0 && offset > 0) {
+            setOffset(Math.floor((data.pagination.total - 1) / PAGE_SIZE) * PAGE_SIZE);
+            return;
+          }
+          setStudents(data.students);
+          setPage(data.pagination);
+        } catch (e) {
+          if (!controller.signal.aborted) {
+            setError((e as Error).message);
+            setStudents([]);
+            setPage(null);
+          }
+        } finally {
+          running = false;
+          if (!controller.signal.aborted) setLoading(false);
         }
-        const data = await response.json() as { students: Student[]; pagination: PageInfo };
-        if (controller.signal.aborted) return;
-        if (data.pagination.total > 0 && data.students.length === 0 && offset > 0) {
-          setOffset(Math.floor((data.pagination.total - 1) / PAGE_SIZE) * PAGE_SIZE);
-          return;
-        }
-        setStudents(data.students);
-        setPage(data.pagination);
-      } catch (e) {
-        if (!controller.signal.aborted) {
-          setError((e as Error).message);
-          setStudents([]);
-          setPage(null);
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    })();
-
-    return () => controller.abort();
+      })();
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 5000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [search, offset]);
 
   function applySearch(event: FormEvent<HTMLFormElement>) {

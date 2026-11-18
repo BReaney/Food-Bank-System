@@ -1,0 +1,212 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
+
+interface Term { id: string; code: string; name: string; }
+interface Booking {
+  id: string;
+  student_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  status: string;
+  starts_at: string;
+  booked_at: string;
+  term_code: string;
+  term_name: string;
+}
+interface Pagination {
+  limit: number; offset: number; total: number;
+  hasNext: boolean; hasPrevious: boolean;
+}
+
+const API = "http://localhost:3001";
+const PAGE_SIZE = 25;
+
+function dateLabel(value: string): string {
+  return new Date(value).toLocaleString("en-CA", {
+    timeZone: "America/Vancouver",
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+}
+
+export default function StaffAppointments() {
+  const [terms, setTerms] = useState<Term[]>([]);
+  const [termId, setTermId] = useState("");
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch(API + "/api/terms", {
+      credentials: "include", cache: "no-store", signal: controller.signal
+    }).then(async response => {
+      if (!response.ok) throw new Error("Unable to retrieve terms");
+      const data = await response.json() as { terms: Term[] };
+      if (!controller.signal.aborted) setTerms(data.terms);
+    }).catch(e => {
+      if (!controller.signal.aborted) setError((e as Error).message);
+    });
+    return () => controller.abort();
+  }, []);
+
+  const refresh = useCallback(async (signal?: AbortSignal) => {
+    const id = ++requestId.current;
+    const params = new URLSearchParams({
+      search,
+      limit: String(PAGE_SIZE),
+      offset: String(offset),
+      status: showAllHistory ? "all" : "booked"
+    });
+    if (termId) params.set("termId", termId);
+
+    try {
+      const response = await fetch(
+        API + "/api/staff/bookings?" + params.toString(),
+        { credentials: "include", cache: "no-store", signal }
+      );
+      const data: unknown = await response.json();
+      if (!response.ok) {
+        const errorText = data && typeof data === "object" &&
+          "error" in data && typeof data.error === "string"
+          ? data.error : "Unable to load staff appointments";
+        throw new Error(errorText);
+      }
+      const result = data as { bookings: Booking[]; pagination: Pagination };
+      if (signal?.aborted || id !== requestId.current) return;
+
+      if (result.pagination.total > 0 && result.bookings.length === 0 && offset > 0) {
+        setOffset(Math.floor((result.pagination.total - 1) / PAGE_SIZE) * PAGE_SIZE);
+        return;
+      }
+      setBookings(result.bookings);
+      setPagination(result.pagination);
+      setError("");
+    } catch (e) {
+      if (!signal?.aborted && id === requestId.current) setError((e as Error).message);
+    } finally {
+      if (!signal?.aborted && id === requestId.current) setLoading(false);
+    }
+  }, [termId, search, offset, showAllHistory]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    void refresh(controller.signal);
+    const onRefresh = () => {
+      if (!document.hidden) void refresh(controller.signal);
+    };
+    const interval = window.setInterval(onRefresh, 5000);
+    window.addEventListener("focus", onRefresh);
+    document.addEventListener("visibilitychange", onRefresh);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onRefresh);
+      document.removeEventListener("visibilitychange", onRefresh);
+    };
+  }, [refresh]);
+
+  function applySearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setOffset(0);
+    setSearch(searchInput.trim());
+  }
+
+  return (
+    <section className="auth-panel">
+      <h2>Staff appointment roster</h2>
+      <p className="auth-muted">
+        Staff-only view with student names and appointment details. Updates every five
+        seconds and when the page regains focus. Other students do not receive this data.
+      </p>
+      <div className="auth-fields">
+        <label>
+          Term
+          <select value={termId} onChange={event => {
+            setTermId(event.target.value);
+            setOffset(0);
+          }}>
+            <option value="">All terms</option>
+            {terms.map(term => (
+              <option key={term.id} value={term.id}>{term.name} ({term.code})</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Show
+          <select value={showAllHistory ? "all" : "booked"} onChange={event => {
+            setShowAllHistory(event.target.value === "all");
+            setOffset(0);
+          }}>
+            <option value="booked">Upcoming active appointments</option>
+            <option value="all">All booking history</option>
+          </select>
+        </label>
+      </div>
+
+      <form className="staff-search-form" onSubmit={applySearch}>
+        <label htmlFor="staff-appointments-search">Search by student name or email</label>
+        <div className="staff-search-row">
+          <input
+            id="staff-appointments-search"
+            type="search"
+            value={searchInput}
+            maxLength={100}
+            onChange={event => setSearchInput(event.target.value)}
+            placeholder="Search fictional students"
+          />
+          <button type="submit">Search</button>
+          <button type="button" onClick={() => {
+            setSearchInput(""); setSearch(""); setOffset(0);
+          }}>Clear</button>
+        </div>
+      </form>
+
+      {error && <p role="alert" className="auth-notice">{error}</p>}
+      {loading && <p role="status">Refreshing bookings...</p>}
+      {!loading && pagination && !error && (
+        <>
+          <p className="auth-muted" role="status">
+            Showing {pagination.total ? pagination.offset + 1 : 0}–
+            {pagination.offset + bookings.length} of {pagination.total} appointments
+          </p>
+          {bookings.length ? (
+            <ul className="auth-list">
+              {bookings.map(booking => (
+                <li key={booking.id}>
+                  <strong>{booking.first_name} {booking.last_name}</strong>
+                  <p>{booking.email}</p>
+                  <p>{dateLabel(booking.starts_at)} — {booking.term_code}</p>
+                  <p>Status: <strong>{booking.status}</strong></p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No appointment records found.</p>
+          )}
+          <nav className="staff-pagination" aria-label="Staff appointment pages">
+            <button type="button" disabled={!pagination.hasPrevious}
+              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
+              Previous
+            </button>
+            <span>Page {Math.floor(pagination.offset / PAGE_SIZE) + 1} of
+              {" "}{Math.max(1, Math.ceil(pagination.total / PAGE_SIZE))}
+            </span>
+            <button type="button" disabled={!pagination.hasNext}
+              onClick={() => setOffset(offset + PAGE_SIZE)}>
+              Next
+            </button>
+          </nav>
+        </>
+      )}
+    </section>
+  );
+}
