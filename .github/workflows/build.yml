@@ -86,3 +86,4 @@ jobs:
           npm run test:pagination
           npm run test:booking-management
           npm run test:household
+          npm run test:calendar
