@@ -3,7 +3,8 @@ import type { PoolClient } from "pg";
 import { pool } from "../db.js";
 import { currentAccount, requireRole, requireUser } from "../security/sessions.js";
 import {
-  UUID_PATTERN, PickupRuleError, clearFuturePickupAssignments, validDisplayName
+  UUID_PATTERN, PickupRuleError, assertStudentPickupRecordEditable,
+  clearFuturePickupAssignments, validDisplayName
 } from "../utils/pickup.js";
 
 export const householdRouter = express.Router();
@@ -126,6 +127,7 @@ householdRouter.delete("/dependents/:id", async (req, res) => {
       if (existing.rows[0].status !== "confirmed") {
         throw new PickupRuleError(409, "Only confirmed dependents may be removed");
       }
+      await assertStudentPickupRecordEditable(client, studentId, "dependent", id);
       await client.query(
         "UPDATE dependent_requests SET removed_at=NOW(), updated_at=NOW() WHERE id=$1",
         [id]
@@ -227,6 +229,7 @@ householdRouter.put("/contacts/:id", async (req, res) => {
         [id, studentId]
       );
       if (!before.rows[0]) throw new PickupRuleError(404, "Pickup contact not found");
+      await assertStudentPickupRecordEditable(client, studentId, "third_party", id);
       const updated = await client.query(
         `UPDATE pickup_contacts SET
            full_name=$1, contact_method=$2, contact_value=$3,
@@ -269,6 +272,7 @@ householdRouter.delete("/contacts/:id", async (req, res) => {
         [id, studentId]
       );
       if (!before.rows[0]) throw new PickupRuleError(404, "Pickup contact not found");
+      await assertStudentPickupRecordEditable(client, studentId, "third_party", id);
       await client.query(
         "UPDATE pickup_contacts SET removed_at=NOW(), updated_at=NOW() WHERE id=$1",
         [id]
