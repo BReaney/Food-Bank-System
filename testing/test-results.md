@@ -103,12 +103,9 @@ separate executable checks with their own assertions, labels, and RSD mappings.
   after the run, including created notifications, bookings, enrollment and
   household records. Staff **search audit entries without personal data** are
   retained, consistent with existing audit behavior.
-- **No 1,100-user benchmark** or 10-way booking concurrency test was performed.
-  The previously agreed concurrency deferral remains in place.
-- No mobile browser automation or accessibility certification was performed.
-- The suite does not modify booking, eligibility, or reporting implementation;
-  this is a **test-only milestone**.
 - On subsequent CI runs, download the latest `rsd-acceptance-results`
   artifact to compare with this committed snapshot. This file records a
   verified run at the SHA above and is **not automatically rewritten by CI**.
+- RSD test group is defined as tests from a separate RSD document made for my SENG 321 class.
+  They relate to our actual test cases as specified above. 
 
