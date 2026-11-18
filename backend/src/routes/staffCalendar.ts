@@ -140,7 +140,11 @@ async function convertLocal(
 }
 async function lockTerm(client: PoolClient, id: string): Promise<TermRow> {
   const result = await client.query<TermRow>(
-    "SELECT * FROM terms WHERE id=$1 FOR UPDATE", [id]
+    `SELECT id,code,name,
+        to_char(starts_on,'YYYY-MM-DD') AS starts_on,
+        to_char(ends_on,'YYYY-MM-DD') AS ends_on,
+        minimum_notice_days,maximum_notice_days,cancellation_cutoff_hours
+      FROM terms WHERE id=$1 FOR UPDATE`, [id]
   );
   if (!result.rows[0]) throw new CalendarError(404, "Term not found");
   return result.rows[0];
@@ -220,7 +224,12 @@ async function notify(
 staffCalendarRouter.get("/terms", async (_req, res) => {
   try {
     const result = await pool.query(
-      `SELECT t.*, count(s.id)::integer AS slot_count
+      `SELECT t.id,t.code,t.name,
+              to_char(t.starts_on,'YYYY-MM-DD') AS starts_on,
+              to_char(t.ends_on,'YYYY-MM-DD') AS ends_on,
+              t.minimum_notice_days,t.maximum_notice_days,
+              t.cancellation_cutoff_hours,
+              count(s.id)::integer AS slot_count
        FROM terms AS t LEFT JOIN appointment_slots AS s ON s.term_id=t.id
        GROUP BY t.id ORDER BY t.starts_on DESC LIMIT 100`
     );
@@ -239,7 +248,7 @@ staffCalendarRouter.post("/terms", async (req, res) => {
          x.maximumNoticeDays,x.cancellationCutoffHours]
       );
       await audit(client, currentAccount(req).id, "calendar_term_created", "term", term.rows[0].id);
-      return term.rows[0];
+      return lockTerm(client, term.rows[0].id);
     });
     res.status(201).json({ term: created });
   } catch (error) { reject(res, error); }
@@ -295,7 +304,7 @@ staffCalendarRouter.put("/terms/:termId", async (req, res) => {
          x.maximumNoticeDays,x.cancellationCutoffHours,id]
       );
       await audit(client, currentAccount(req).id, "calendar_term_updated", "term", id);
-      return result.rows[0];
+      return lockTerm(client, id);
     });
     res.json({ term: updated });
   } catch (error) { reject(res, error); }
