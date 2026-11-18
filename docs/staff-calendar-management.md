@@ -60,6 +60,9 @@ Sign in as `staff.demo@example.com`, then go to **Staff calendar management**.
    current booked seats. If booked, moving a slot is restricted to the
    same Vancouver-local week and must remain outside the configured
    cancellation cutoff. Affected students get individual notices.
+   Slots with cancelled, completed or no-show booking history cannot
+   have their dates/times changed; create a new slot rather than
+   rewriting historical appointment dates.
 6. Close a slot: after confirmation, the slot becomes unavailable
    and **all its active bookings are cancelled**. Each affected student
    gets a private in-app notice and a booking event, and staff action
