@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import WeeklyPlanner, { WeekPicker } from "./WeeklyPlanner";
+import { addCalendarDays, clockLabel, localParts, todayVancouver, weekOf } from "./calendarDates";
 
 interface Term {
   id:string; code:string; name:string;
@@ -55,7 +57,10 @@ export default function StaffCalendar(){
   const [terms,setTerms]=useState<Term[]>([]);
   const [termId,setTermId]=useState("");
   const [slots,setSlots]=useState<Slot[]>([]);
-  const [slotMonth,setSlotMonth]=useState("");
+  const [week,setWeek]=useState(() =>
+    weekOf(addCalendarDays(todayVancouver(),7))
+  );
+  const [selectedSlotId,setSelectedSlotId]=useState<string|null>(null);
   const [hasMore,setHasMore]=useState(false);
   const [termForm,setTermForm]=useState<FormTerm>({...EMPTY_TERM});
   const [editingTermId,setEditingTermId]=useState<string|null>(null);
@@ -82,14 +87,14 @@ export default function StaffCalendar(){
       termId
         ? api<{slots:Slot[];hasMore:boolean}>(
             "/api/staff/calendar/slots?termId="+encodeURIComponent(termId)+
-            (slotMonth?"&month="+encodeURIComponent(slotMonth):""))
+            "&week="+encodeURIComponent(week))
         : Promise.resolve({slots:[],hasMore:false})
     ]);
     setTerms(t.terms);
     setSlots(s.slots);
     setHasMore(s.hasMore);
     setTermId(current=>current||t.terms[0]?.id||"");
-  },[termId,slotMonth]);
+  },[termId,week]);
 
   useEffect(()=>{
     let alive=true;
@@ -142,6 +147,8 @@ export default function StaffCalendar(){
     if(result){
       const created=result.term as Term;
       setTermId(created.id);
+      setWeek(weekOf(created.starts_on));
+      setSelectedSlotId(null);
       setEditingTermId(null);
       setTermForm({...EMPTY_TERM});
       setFromDate(created.starts_on);
@@ -172,6 +179,8 @@ export default function StaffCalendar(){
       editingSlotId?"Slot saved; affected students notified":"Slot created"
     );
     if(result){
+      setWeek(weekOf(slotLocal.slice(0,10)));
+      setSelectedSlotId(null);
       setEditingSlotId(null);setSlotLocal("");
     }
   }
@@ -197,6 +206,8 @@ export default function StaffCalendar(){
       "Recurring weekly slots created"
     );
     if(result && typeof result.createdSlots==="number"){
+      setWeek(weekOf(fromDate));
+      setSelectedSlotId(null);
       setMessage(result.createdSlots+" appointment slots created");
     }
   }
@@ -284,7 +295,8 @@ export default function StaffCalendar(){
             setFromDate(term?.starts_on??"");
             setToDate(term?.ends_on??"");
             setEditingSlotId(null);
-            setSlotMonth("");
+            setSelectedSlotId(null);
+            if (term) setWeek(weekOf(term.starts_on));
             setMessage("");setError("");
           }}>
             <option value="">Select term</option>
@@ -301,7 +313,7 @@ export default function StaffCalendar(){
 
       {termId&&<>
         <h3>2. Create or edit one appointment slot</h3>
-        <form className="auth-fields" onSubmit={e=>void saveSlot(e)}>
+        <form className="auth-fields" id="staff-slot-editor" onSubmit={e=>void saveSlot(e)}>
           <div className="calendar-form-grid">
             <label>Appointment start — Vancouver local time
               <input type="datetime-local" required value={slotLocal}
@@ -376,41 +388,74 @@ export default function StaffCalendar(){
           </p>
         </form>
 
-        <h3>4. Review scheduled slots</h3>
-        <label className="appointment-choice">
-          Filter managed slots by Vancouver-local month
-          <input type="month" value={slotMonth}
-            onChange={e=>setSlotMonth(e.target.value)}/>
-        </label>
-        {slotMonth&&<button type="button" onClick={()=>setSlotMonth("")}>
-          Show all months
-        </button>}
+        <h3>4. Weekly appointment planner</h3>
         <p className="auth-muted">
-          Students see times, capacity and availability only; this management
-          list contains no student identities. For each slot, booked places
-          are counted from active reservations.
+          Choose a week to inspect the available days, appointment times,
+          current capacity, or closed slots. Select an appointment card for
+          staff-only editing controls.
         </p>
-        {hasMore&&<p role="alert">Showing first 500 slots. Filter by month to manage additional dates.</p>}
-        {slots.length===0?<p>No slots configured for this term.</p>:(
-          <ul className="auth-list">
-            {slots.map(slot=><li key={slot.id}>
-              <strong>{dateLabel(slot.starts_at)}</strong>
-              <p>{Math.round((new Date(slot.ends_at).getTime()-
-                new Date(slot.starts_at).getTime())/60000)} minutes · Capacity
-                {" "}{slot.capacity} · Booked {slot.booked_count}
-              </p>
-              <p>Status: <strong>{slot.is_open?"Open":"Closed"}</strong></p>
+        <WeekPicker week={week} onChange={next => {
+          setWeek(next);
+          setSelectedSlotId(null);
+        }} />
+        {hasMore && <p role="alert">
+          This week has more than 500 appointment slots; only the first 500
+          are displayed. Contact the developer if this limit is reached.
+        </p>}
+        <WeeklyPlanner
+          week={week}
+          slots={slots}
+          ariaLabel="Staff weekly appointment schedule"
+          renderSlot={slot => {
+            const status = !slot.is_open ? "closed"
+              : slot.remaining_capacity <= 0 ? "full" : "open";
+            return (
+              <button className="weekly-slot-button" type="button"
+                data-status={status}
+                aria-pressed={selectedSlotId === slot.id}
+                aria-label={dateLabel(slot.starts_at) + ", " +
+                  slot.booked_count + " booked of " + slot.capacity +
+                  (slot.is_open ? ", open" : ", closed")}
+                onClick={() => setSelectedSlotId(slot.id)}>
+                <span><strong>{clockLabel(localParts(slot.starts_at).minutes)}</strong></span>
+                <span>{slot.is_open
+                  ? slot.booked_count + "/" + slot.capacity + " booked" : "Closed"}</span>
+              </button>
+            );
+          }}
+        />
+        {(() => {
+          const slot = slots.find(item => item.id === selectedSlotId);
+          if (!slot) return null;
+          return (
+            <div className="weekly-slot-details">
+              <h3>Selected staff appointment</h3>
+              <p><strong>{dateLabel(slot.starts_at)}</strong></p>
+              <p>Duration: {Math.round(
+                (new Date(slot.ends_at).getTime() -
+                  new Date(slot.starts_at).getTime()) / 60000
+              )} minutes</p>
+              <p>Capacity: {slot.capacity}, booked: {slot.booked_count},
+                remaining: {slot.remaining_capacity}</p>
+              <p>Status: <strong>{slot.is_open ? "Open" : "Closed"}</strong></p>
               <div className="auth-actions">
+                <button type="button" disabled={busy} onClick={() => {
+                  editSlot(slot);
+                  document.getElementById("staff-slot-editor")?.scrollIntoView({
+                    behavior: "smooth", block: "start"
+                  });
+                }}>Edit this slot</button>
                 <button type="button" disabled={busy}
-                  onClick={()=>editSlot(slot)}>Edit</button>
-                <button type="button" disabled={busy}
-                  onClick={()=>void changeOpen(slot)}>
-                  {slot.is_open?"Close slot":"Reopen slot"}
+                  onClick={() => void changeOpen(slot)}>
+                  {slot.is_open ? "Close slot (cancel bookings)" : "Reopen slot"}
+                </button>
+                <button type="button" onClick={() => setSelectedSlotId(null)}>
+                  Clear selection
                 </button>
               </div>
-            </li>)}
-          </ul>
-        )}
+            </div>
+          );
+        })()}
       </>}
     </section>
   );
