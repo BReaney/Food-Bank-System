@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import WeeklyPlanner, { WeekPicker } from "./WeeklyPlanner";
+import { addCalendarDays, clockLabel, localParts, todayVancouver, weekOf } from "./calendarDates";
 
 interface Slot {
   id: string;
@@ -89,6 +91,11 @@ async function fetchData<T>(path: string, signal?: AbortSignal): Promise<T> {
 
 export default function StudentAppointments() {
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [week, setWeek] = useState(() =>
+    weekOf(addCalendarDays(todayVancouver(), 7))
+  );
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [slotsTruncated, setSlotsTruncated] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [events, setEvents] = useState<EventRecord[]>([]);
@@ -108,7 +115,7 @@ export default function StudentAppointments() {
     const requestId = ++requestNumber.current;
     try {
       const [slotResult, bookingResult, historyResult, eventResult, d, c] = await Promise.all([
-        fetchData<{ slots: Slot[] }>("/api/slots", signal),
+        fetchData<{ slots: Slot[]; hasMore: boolean }>("/api/slots?week="+encodeURIComponent(week), signal),
         fetchData<{ bookings: Booking[] }>("/api/bookings", signal),
         fetchData<{ bookings: HistoryRecord[] }>("/api/bookings/history", signal),
         fetchData<{ events: EventRecord[] }>("/api/bookings/events", signal),
@@ -118,6 +125,7 @@ export default function StudentAppointments() {
       if (signal?.aborted || requestId !== requestNumber.current) return;
 
       setSlots(slotResult.slots);
+      setSlotsTruncated(slotResult.hasMore);
       setBookings(bookingResult.bookings);
       setHistory(historyResult.bookings);
       setEvents(eventResult.events);
@@ -133,7 +141,7 @@ export default function StudentAppointments() {
         setInitialLoading(false);
       }
     }
-  }, []);
+  }, [week]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -208,59 +216,97 @@ export default function StudentAppointments() {
           Other students' identities are never shown here.
         </p>
 
-        <label className="appointment-choice">
-          Who will collect the hamper?
-          <select value={newPickupChoice} disabled={busy}
-            onChange={e => setNewPickupChoice(e.target.value)}>
-            <option value="self">I will collect it myself</option>
-            {dependents.filter(d => d.status === "confirmed").map(d => (
-              <option key={d.id} value={"dependent:" + d.id}>
-                Confirmed dependent: {d.full_name}
-              </option>
-            ))}
-            {contacts.filter(c => c.status === "confirmed").map(c => (
-              <option key={c.id} value={"third_party:" + c.id}>
-                Approved third-party contact: {c.full_name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <WeekPicker week={week} onChange={next => {
+          setWeek(next);
+          setSelectedSlotId(null);
+        }} />
         <p className="auth-muted">
-          Only confirmed people can be selected. Third-party contacts require
-          your recorded consent; approval is checked again when you book.
+          Select an appointment block to review its available spaces. Green
+          indicates your own booking; full and closed times cannot be booked.
         </p>
-        <ul className="auth-list">
-          {slots.map(slot => {
-            const alreadyBooked = bookings.some(b => b.slot_id === slot.id);
-            const full = slot.remaining_capacity <= 0;
-            const available = slot.is_open && !full;
+        {slotsTruncated && <p role="alert">
+          This week contains more than 500 slots. Only the first 500 are shown.
+          Contact staff if you cannot locate an appointment.
+        </p>}
+        <WeeklyPlanner
+          week={week}
+          slots={slots}
+          ariaLabel="Student weekly appointment planner"
+          renderSlot={slot => {
+            const mine = bookings.some(booking => booking.slot_id === slot.id);
+            const status = mine ? "mine" : !slot.is_open ? "closed"
+              : slot.remaining_capacity <= 0 ? "full" : "open";
+            const label = mine ? "Your booking"
+              : !slot.is_open ? "Closed"
+              : slot.remaining_capacity <= 0 ? "Full"
+              : slot.remaining_capacity + " left";
             return (
-              <li key={slot.id}>
-                <strong>{dateLabel(slot.starts_at)}</strong>
-                <p>{alreadyBooked
-                  ? "Your appointment"
-                  : !slot.is_open ? "Closed"
-                  : full ? "Full"
-                  : slot.remaining_capacity + " of " + slot.capacity + " spaces available"}</p>
-                <button
-                  type="button"
-                  disabled={busy || !available || alreadyBooked}
-                  onClick={() => void mutate(
-                    "/api/bookings",
-                    { slotId: slot.id, ...pickupPayload(newPickupChoice) }
-                  )}
-                >
-                  {alreadyBooked ? "Already booked" : full ? "Full" : "Book this slot"}
-                </button>
-              </li>
+              <button type="button" className="weekly-slot-button"
+                data-status={status}
+                aria-pressed={selectedSlotId === slot.id}
+                aria-label={dateLabel(slot.starts_at) + ", " + label}
+                onClick={() => setSelectedSlotId(slot.id)}>
+                <span><strong>{clockLabel(localParts(slot.starts_at).minutes)}</strong></span>
+                <span>{label}</span>
+              </button>
             );
-          })}
-        </ul>
-        {slots.length === 0 && <p>No upcoming slots are configured.</p>}
+          }}
+        />
+        {(() => {
+          const slot = slots.find(value => value.id === selectedSlotId);
+          if (!slot) return null;
+          const mine = bookings.some(booking => booking.slot_id === slot.id);
+          const available = slot.is_open && slot.remaining_capacity > 0 && !mine;
+          return (
+            <div className="weekly-slot-details">
+              <h3>Selected appointment</h3>
+              <p><strong>{dateLabel(slot.starts_at)}</strong></p>
+              <p>{mine ? "You already booked this slot"
+                : !slot.is_open ? "This slot is closed"
+                : slot.remaining_capacity <= 0 ? "This slot is full"
+                : slot.remaining_capacity + " of " + slot.capacity + " places available"}</p>
+              {available && <>
+                <label className="appointment-choice">
+                  Who will collect the hamper?
+                  <select value={newPickupChoice} disabled={busy}
+                    onChange={e => setNewPickupChoice(e.target.value)}>
+                    <option value="self">I will collect it myself</option>
+                    {dependents.filter(d => d.status === "confirmed").map(d => (
+                      <option key={d.id} value={"dependent:" + d.id}>
+                        Confirmed dependent: {d.full_name}
+                      </option>
+                    ))}
+                    {contacts.filter(c => c.status === "confirmed").map(c => (
+                      <option key={c.id} value={"third_party:" + c.id}>
+                        Approved third-party contact: {c.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="auth-muted">
+                  Other students cannot see the selected pickup person's identity.
+                  Eligibility and capacity are rechecked by the server.
+                </p>
+              </>}
+              <div className="auth-actions">
+                <button type="button" disabled={busy || !available}
+                  onClick={() => void mutate("/api/bookings", {
+                    slotId: slot.id, ...pickupPayload(newPickupChoice)
+                  })}>Book selected appointment</button>
+                <button type="button" onClick={() => setSelectedSlotId(null)}>
+                  Clear selection
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </section>
 
       <section className="auth-panel">
         <h2>My upcoming appointments</h2>
+        <p className="auth-muted">To reschedule to another week, first
+          navigate to that week in the planner above. Available times from
+          the displayed week will appear as alternatives below.</p>
         <ul className="auth-list">
           {bookings.map(booking => {
             const alternatives = slots.filter(slot =>

@@ -6,6 +6,8 @@ import { bookingManagementRouter } from "./routes/bookingManagement.js";
 import { staffBookingsRouter } from "./routes/staffBookings.js";
 import { householdRouter } from "./routes/household.js";
 import { staffHouseholdRouter } from "./routes/staffHousehold.js";
+import { staffCalendarRouter } from "./routes/staffCalendar.js";
+import { notificationsRouter } from "./routes/notifications.js";
 import { authRouter } from "./routes/auth.js";
 import { profileRouter } from "./routes/profiles.js";
 import { staffRouter } from "./routes/staff.js";
@@ -28,7 +30,7 @@ app.use(express.json({ limit: "16kb" }));
 app.use("/api", (req, res, next) => {
   // Never cache user-specific or rapidly changing appointment data.
   res.set("Cache-Control", "no-store");
-  const protectedPaths = ["/auth", "/profile", "/staff", "/slots", "/bookings", "/eligibility", "/terms", "/household"];
+  const protectedPaths = ["/auth", "/profile", "/staff", "/slots", "/bookings", "/eligibility", "/terms", "/household", "/notifications"];
   if (!protectedPaths.some(path => req.path === path || req.path.startsWith(path + "/"))) {
     next();
     return;
@@ -98,25 +100,52 @@ interface SlotRow {
   remaining_capacity: number;
 }
 
-// Read-only endpoint: show upcoming slots, including full and closed slots.
-app.get("/api/slots", requireUser, async (_req, res) => {
+// Read-only availability contains no student identities. Staff-generated
+// schedules may have more than 50 future slots; optional month filtering
+// lets students browse each part of a long semester.
+// Student-safe availability. Fetch a single Vancouver-local calendar
+// week for the planner, or retain the previous month filter for compatibility.
+function validCalendarWeek(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + "T12:00:00Z");
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value &&
+    date.getUTCDay() === 1;
+}
+
+app.get("/api/slots", requireUser, async (req, res) => {
+  const month = req.query.month;
+  const week = req.query.week;
+  if ((month !== undefined &&
+       (typeof month !== "string" ||
+        !/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month))) ||
+      (week !== undefined && !validCalendarWeek(week)) ||
+      (week !== undefined && month !== undefined)) {
+    res.status(400).json({ error: "Use a Monday week=YYYY-MM-DD or month=YYYY-MM, not both" });
+    return;
+  }
   try {
     const result = await pool.query<SlotRow>(`
       SELECT id, term_id, starts_at, ends_at, capacity,
              is_open, booked_count, remaining_capacity
       FROM slot_availability
       WHERE starts_at >= NOW()
-      ORDER BY starts_at ASC
-      LIMIT 50
-    `);
-
-    // Express converts Date objects to ISO 8601 strings in the JSON.
-    res.json({ slots: result.rows });
+        AND ($1::text IS NULL OR
+          ((starts_at AT TIME ZONE 'America/Vancouver')::date >=
+             (($1::text || '-01')::date)
+           AND
+           (starts_at AT TIME ZONE 'America/Vancouver')::date <
+             (($1::text || '-01')::date + INTERVAL '1 month')))
+        AND ($2::date IS NULL OR
+          ((starts_at AT TIME ZONE 'America/Vancouver')::date >= $2::date
+           AND (starts_at AT TIME ZONE 'America/Vancouver')::date <
+             ($2::date + INTERVAL '7 days')))
+      ORDER BY starts_at ASC, id ASC
+      LIMIT 501
+    `, [month ?? null, week ?? null]);
+    res.json({ slots: result.rows.slice(0, 500), hasMore: result.rows.length > 500 });
   } catch (error) {
     console.error("Failed to load appointment slots:", error);
-    res.status(500).json({
-      error: "Unable to retrieve appointment slots"
-    });
+    res.status(500).json({ error: "Unable to retrieve appointment slots" });
   }
 });
 
@@ -132,6 +161,8 @@ app.use("/api/bookings", bookingManagementRouter);
 app.use("/api/staff/bookings", staffBookingsRouter);
 app.use("/api/household", householdRouter);
 app.use("/api/staff/household", staffHouseholdRouter);
+app.use("/api/staff/calendar", staffCalendarRouter);
+app.use("/api/notifications", notificationsRouter);
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);

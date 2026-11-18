@@ -136,3 +136,220 @@
   margin-top: 20px;
   line-height: 1.3;
 }
+
+/* Calendar forms and accessible schedule controls */
+.calendar-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(190px,1fr));
+  gap: 12px;
+}
+.calendar-form-grid label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+.calendar-form-grid input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  border: 1px solid #9b9b9b;
+  border-radius: 6px;
+}
+.calendar-weekdays {
+  border: 1px solid var(--border,#ddd);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  flex-wrap: wrap;
+}
+.calendar-weekdays legend { font-weight: 600; }
+.calendar-weekdays label { display: flex; align-items: center; gap: 6px; }
+.calendar-weekdays input[type="checkbox"] { width: auto; }
+
+
+/* Weekly planner: seven days across, hours down, no long appointment list. */
+.weekly-picker {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+}
+.weekly-picker-navigation,
+.weekly-picker-jump {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.weekly-picker-navigation strong {
+  color: var(--text-h);
+  font-size: 1.02rem;
+  text-align: center;
+}
+.weekly-picker-jump { justify-content: flex-start; }
+.weekly-picker-jump label { font-weight: 600; }
+.weekly-picker-jump input {
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  padding: 8px;
+  max-width: 200px;
+}
+.weekly-planner-wrap { margin-top: 10px; }
+.weekly-planner-scroll {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overscroll-behavior-inline: contain;
+}
+.weekly-planner-scroll:focus-visible {
+  outline: 3px solid #6666cb;
+  outline-offset: 2px;
+}
+.weekly-planner-grid {
+  min-width: 1050px;
+  display: grid;
+  grid-template-columns: 74px repeat(7, minmax(135px, 1fr));
+  background: var(--bg);
+}
+.weekly-planner-corner,
+.weekly-planner-day-heading {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 11px 6px;
+  font-size: 0.83rem;
+  font-weight: 700;
+  text-align: center;
+  background: var(--code-bg);
+  color: var(--text-h);
+  border-bottom: 1px solid var(--border);
+}
+.weekly-planner-corner {
+  left: 0;
+  z-index: 4;
+}
+.weekly-planner-axis {
+  position: relative;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+}
+.weekly-planner-hour {
+  position: absolute;
+  right: 7px;
+  transform: translateY(-40%);
+  font-size: 0.69rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text);
+}
+.weekly-planner-day {
+  position: relative;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+.weekly-planner-day:last-child { border-right: 0; }
+.weekly-planner-hour-lines {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(to bottom,
+    var(--border) 0px, var(--border) 1px, transparent 1px, transparent 100%);
+  pointer-events: none;
+}
+.weekly-planner-slot {
+  position: absolute;
+  z-index: 1;
+  min-width: 0;
+}
+.auth-page button.weekly-slot-button {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  text-align: left;
+  gap: 1px;
+  height: 100%;
+  width: 100%;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.66rem;
+  line-height: 1.15;
+  border: 1px solid #7a88ac;
+  background: #e7edf9;
+  color: #1d304d;
+  cursor: pointer;
+  overflow: hidden;
+}
+.weekly-slot-button span { display: block; max-width: 100%; }
+.weekly-slot-button[data-status="full"] {
+  background: #f7e8de;
+  border-color: #a97755;
+  color: #67371c;
+}
+.weekly-slot-button[data-status="closed"] {
+  background: #e5e5e5;
+  border-color: #888;
+  color: #3a3a3a;
+}
+.weekly-slot-button[data-status="mine"] {
+  background: #dbf2e4;
+  border-color: #4c936e;
+  color: #16502d;
+}
+.weekly-slot-button[aria-pressed="true"] {
+  outline: 3px solid #333b8d;
+  outline-offset: 0;
+  z-index: 2;
+  box-shadow: 0 0 0 1px white inset;
+}
+.weekly-slot-button:focus-visible { outline: 3px solid #333b8d; }
+.weekly-planner-empty {
+  padding: 10px 0;
+  font-weight: 600;
+}
+.weekly-planner-hint { margin: 9px 0; font-size: 0.8rem; }
+.weekly-slot-details {
+  margin: 16px 0;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  display: grid;
+  gap: 9px;
+}
+.weekly-slot-details h3 { margin: 0; }
+.weekly-slot-details p { margin: 0 !important; }
+@media (prefers-color-scheme: dark) {
+  .weekly-slot-button[data-status="open"],
+  .weekly-slot-button[data-status="available"] {
+    background: #243657; border-color: #82a6db; color: #f0f5ff;
+  }
+  .weekly-slot-button[data-status="full"] {
+    background: #513625; border-color: #d1a47a; color: #fff0e3;
+  }
+  .weekly-slot-button[data-status="closed"] {
+    background: #333741; border-color: #9199a9; color: #ededed;
+  }
+  .weekly-slot-button[data-status="mine"] {
+    background: #204c3a; border-color: #8ad9ac; color: #eefff5;
+  }
+}
+@media (max-width: 700px) {
+  .weekly-picker-navigation { justify-content: center; }
+  .weekly-picker-navigation strong { order: -1; width: 100%; }
+}
+
+
+/* Use the available desktop width for the seven-day planner. Narrow devices
+   retain horizontal scrolling; this does not resize other account screens. */
+.auth-page:has(.weekly-planner-wrap) {
+  width: min(100%, 1126px);
+  padding-inline: clamp(12px, 2.2vw, 22px);
+}

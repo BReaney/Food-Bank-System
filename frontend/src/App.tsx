@@ -5,6 +5,8 @@ import StudentEligibility from "./StudentEligibility";
 import StaffEnrollment from "./StaffEnrollment";
 import StaffDirectory from "./StaffDirectory";
 import StaffAppointments from "./StaffAppointments";
+import StaffCalendar from "./StaffCalendar";
+import StudentNotifications from "./StudentNotifications";
 import StudentAppointments from "./StudentAppointments";
 import StudentHousehold from "./StudentHousehold";
 import StaffHousehold from "./StaffHousehold";
@@ -221,10 +223,12 @@ function App() {
             <>
               <StudentEligibility />
               <StudentHousehold />
+              <StudentNotifications />
               <StudentAppointments />
             </>
           ) : (
             <>
+            <StaffCalendar />
             <StaffAppointments />
             <StaffHousehold />
             <StaffEnrollment />
