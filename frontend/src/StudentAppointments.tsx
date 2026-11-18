@@ -65,6 +65,14 @@ function bookingPickupValue(booking: Booking): string {
 }
 const REFRESH_MS = 5000;
 
+function readableBookingStatus(status: string): string {
+  if (status === "completed") return "Completed";
+  if (status === "no_show") return "No-show";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "booked") return "Booked";
+  return status;
+}
+
 function dateLabel(value: string): string {
   return new Date(value).toLocaleString("en-CA", {
     timeZone: "America/Vancouver",
@@ -422,7 +430,7 @@ export default function StudentAppointments() {
           <ul className="auth-list">
             {history.slice(0, 10).map(item => (
               <li key={item.id}>
-                {dateLabel(item.starts_at)} — <strong>{item.status}</strong>
+                {dateLabel(item.starts_at)} — <strong>{readableBookingStatus(item.status)}</strong>
               </li>
             ))}
           </ul>
@@ -432,7 +440,7 @@ export default function StudentAppointments() {
           <ul className="auth-list">
             {events.slice(0, 10).map(event => (
               <li key={event.id}>
-                <strong>{event.event_type}</strong> — {dateLabel(event.occurred_at)}
+                <strong>{readableBookingStatus(event.event_type)}</strong> — {dateLabel(event.occurred_at)}
                 {event.event_type === "pickup_updated" &&
                   <p>Pickup authorization changed{event.event_data.reason
                     ? " (" + event.event_data.reason.replaceAll("_", " ") + ")" : ""}.</p>}
