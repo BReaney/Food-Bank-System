@@ -110,7 +110,7 @@ householdRouter.post("/dependents", async (req, res) => {
 // Per RSD, a student can remove a dependent *after* staff confirms it.
 householdRouter.delete("/dependents/:id", async (req, res) => {
   const id = req.params.id;
-  if (!UUID_PATTERN.test(id ?? "")) {
+  if (typeof id !== "string" || !UUID_PATTERN.test(id)) {
     res.status(400).json({ error: "Invalid dependent identifier" });
     return;
   }
@@ -211,7 +211,7 @@ householdRouter.post("/contacts", async (req, res) => {
 
 householdRouter.put("/contacts/:id", async (req, res) => {
   const id = req.params.id;
-  if (!UUID_PATTERN.test(id ?? "") || !validContact(req.body)) {
+  if (typeof id !== "string" || !UUID_PATTERN.test(id) || !validContact(req.body)) {
     res.status(400).json({
       error: "Valid contact ID, name, contact method/value, and renewed consent required"
     });
@@ -256,7 +256,7 @@ householdRouter.put("/contacts/:id", async (req, res) => {
 
 householdRouter.delete("/contacts/:id", async (req, res) => {
   const id = req.params.id;
-  if (!UUID_PATTERN.test(id ?? "")) {
+  if (typeof id !== "string" || !UUID_PATTERN.test(id)) {
     res.status(400).json({ error: "Invalid pickup contact identifier" });
     return;
   }
