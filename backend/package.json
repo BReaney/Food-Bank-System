@@ -17,7 +17,8 @@
     "test:household": "tsx src/scripts/householdSmokeTest.ts",
     "test:calendar": "tsx src/scripts/calendarSmokeTest.ts",
     "test:staff-outcomes": "tsx src/scripts/staffOutcomesSmokeTest.ts",
-    "test:reporting": "tsx src/scripts/reportingSmokeTest.ts"
+    "test:reporting": "tsx src/scripts/reportingSmokeTest.ts",
+    "test:staff-records": "tsx src/scripts/staffRecordsSmokeTest.ts"
   },
   "keywords": [],
   "author": "",
