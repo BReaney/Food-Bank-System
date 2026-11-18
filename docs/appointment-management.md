@@ -69,12 +69,21 @@ The route never uses a client-supplied student ID to determine ownership.
 ## Rules
 
 - Cancellation and rescheduling allowed only when booking status is booked.
-- The **original** appointment must be at least
+- The **original** appointment must be **more than**
   terms.cancellation_cutoff_hours ahead (default **24 hours**).
+  The same cutoff applies to all student-initiated appointment edits:
+  cancellation, rescheduling and selecting/changing a pickup person.
+  It also blocks student edits/removals of approved dependents or
+  pickup contacts if they would change an assigned near-term booking.
+  Staff authorization withdrawals remain an immediate safety override.
 - A rescheduled target must have remaining capacity, be open, within
   the associated term and within its advance-booking window.
 - A student must have completed their survey and have verified
-  enrollment **for the new target term**.
+  enrollment **for the new target term**. Withdrawing a student's
+  enrollment verification blocks new bookings and rescheduling, but
+  intentionally does **not** cancel existing confirmed appointments.
+  Student cancellations and authorized pickup edits remain subject to
+  the usual appointment cutoff.
 - One non-cancelled booking per student per Vancouver-local calendar
   week is enforced by the existing unique PostgreSQL index.
 - Cancelled, completed and no-show records cannot be rescheduled.
