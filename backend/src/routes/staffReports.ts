@@ -85,7 +85,7 @@ function errorResponse(res: express.Response, error: unknown): void {
 const filteredBookingsSql = `
   FROM bookings AS b
   JOIN appointment_slots AS s ON s.id = b.slot_id
-  WHERE s.term_id = $1::uuid
+  WHERE ($1::text = 'all' OR s.term_id = NULLIF($1::text,'all')::uuid)
     AND s.starts_at >= ($2::date::timestamp AT TIME ZONE 'America/Vancouver')
     AND s.starts_at < (($3::date + 1)::timestamp AT TIME ZONE 'America/Vancouver')
 `;
@@ -101,15 +101,30 @@ async function buildUsageReport(
   try {
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
 
-    const found = await client.query<ReportTerm>(
-      `SELECT id, code, name,
-              to_char(starts_on, 'YYYY-MM-DD') AS starts_on,
-              to_char(ends_on, 'YYYY-MM-DD') AS ends_on
-       FROM terms WHERE id = $1`,
-      [termId]
-    );
-    const term = found.rows[0];
-    if (!term) throw new ReportError(404, "The selected term was not found");
+    // RSD: per-term reports. Challenge: optional annual report spanning
+    // successive, nonoverlapping terms. "all" always needs explicit dates.
+    let term: ReportTerm;
+    if (termId === "all") {
+      if (!requestedFrom || !requestedTo) {
+        throw new ReportError(400, "An all-terms report requires both dates");
+      }
+      term = {
+        id: "all", code: "ALL", name: "All terms",
+        starts_on: requestedFrom, ends_on: requestedTo
+      };
+    } else {
+      const found = await client.query<ReportTerm>(
+        `SELECT id, code, name,
+                to_char(starts_on, 'YYYY-MM-DD') AS starts_on,
+                to_char(ends_on, 'YYYY-MM-DD') AS ends_on
+         FROM terms WHERE id = $1`,
+        [termId]
+      );
+      if (!found.rows[0]) {
+        throw new ReportError(404, "The selected term was not found");
+      }
+      term = found.rows[0];
+    }
 
     const fromDate = requestedFrom ?? term.starts_on;
     const toDate = requestedTo ?? term.ends_on;
@@ -117,8 +132,14 @@ async function buildUsageReport(
         fromDate > toDate) {
       throw new ReportError(400, "Enter a valid start and end date (YYYY-MM-DD)");
     }
-    if (fromDate < term.starts_on || toDate > term.ends_on) {
+    if (termId !== "all" &&
+        (fromDate < term.starts_on || toDate > term.ends_on)) {
       throw new ReportError(422, "The report date range must stay within the selected term");
+    }
+    if (termId === "all" &&
+        (Date.parse(toDate) - Date.parse(fromDate)) / 86400000 > 366) {
+      throw new ReportError(400,
+        "An all-terms report may cover at most 367 inclusive calendar dates");
     }
 
     const values = [termId, fromDate, toDate];
@@ -272,7 +293,8 @@ function reportRequest(req: express.Request): {
   termId: string; fromDate: string | undefined; toDate: string | undefined;
 } {
   const { termId, fromDate, toDate } = req.query;
-  if (typeof termId !== "string" || !UUID.test(termId) ||
+  if (typeof termId !== "string" ||
+      (termId !== "all" && !UUID.test(termId)) ||
       (fromDate !== undefined && !validDate(fromDate)) ||
       (toDate !== undefined && !validDate(toDate)) ||
       ((fromDate === undefined) !== (toDate === undefined)) ||
