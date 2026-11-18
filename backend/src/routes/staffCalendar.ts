@@ -384,6 +384,18 @@ staffCalendarRouter.put("/slots/:slotId", async (req,res) => {
       }
       const moved = time.starts_at.getTime() !== old.starts_at.getTime() ||
                     time.ends_at.getTime() !== old.ends_at.getTime();
+      if (moved) {
+        // Historical bookings must never appear to have occurred at a
+        // different time merely because staff edited the shared slot row.
+        const historical = await client.query(
+          `SELECT 1 FROM bookings WHERE slot_id=$1 AND status<>'booked' LIMIT 1`,
+          [id]
+        );
+        if (historical.rows[0]) {
+          throw new CalendarError(409,
+            "This slot has cancelled/completed/no-show history; create a new slot instead of moving its time");
+        }
+      }
       if (moved && booked.rows.length > 0) {
         if (weekOf(time.starts_at)!==weekOf(old.starts_at)) {
           throw new CalendarError(409,
