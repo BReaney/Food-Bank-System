@@ -127,19 +127,19 @@ async function changeStatus(req: express.Request, res: express.Response, kind: K
       );
     }
     await client.query(
-      \`INSERT INTO household_events
+      `INSERT INTO household_events
         (student_id, actor_id, record_type, record_id,
          action, previous_status, new_status)
-       VALUES ($1,$2,$3,$4,'status_changed',$5,$6)\`,
+       VALUES ($1,$2,$3,$4,'status_changed',$5,$6)`,
       [current.student_id, actorId, kind, id, current.status, newStatus]
     );
     await client.query(
-      \`INSERT INTO audit_logs
+      `INSERT INTO audit_logs
         (actor_id, action, target_type, target_id, details)
        VALUES ($1, 'household_status_changed', $2, $3,
          jsonb_build_object(
            'from',$4::text,'to',$5::text,
-           'affectedBookings',$6::integer))\`,
+           'affectedBookings',$6::integer))`,
       [actorId, kind, id, current.status, newStatus, affectedBookings]
     );
     await client.query("COMMIT");
