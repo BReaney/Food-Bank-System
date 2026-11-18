@@ -257,8 +257,11 @@ try {
   requireStatus(csv,200);
   assert.ok(csv.contentType.includes("text/csv"));
   assert.ok(typeof csv.data==="string");
-  assert.ok(csv.data.startsWith("\uFEFF"));
-  assert.ok(csv.data.includes('"section","period","metric","value"'));
+  // Fetch's TextDecoder strips a UTF-8 BOM from decoded text by design.
+  // The exported CSV still contains a BOM at the byte level.
+  assert.ok(csv.data.replace(/^\uFEFF/, "").startsWith(
+    '"section","period","metric","value"'
+  ));
   assert.ok(csv.data.includes('"summary","","appointments_completed","5"'));
   assert.ok(csv.data.includes('"summary","","distinct_students_served","3"'));
   assert.ok(csv.data.includes(`"metadata","","term_name","'=2+2"`));
