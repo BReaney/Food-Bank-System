@@ -30,6 +30,8 @@ staffBookingsRouter.get("/", async (req, res) => {
       "JOIN profiles AS p ON p.id = b.student_id",
       "JOIN appointment_slots AS s ON s.id = b.slot_id",
       "JOIN terms AS t ON t.id = s.term_id",
+      "LEFT JOIN dependent_requests AS d ON d.id = b.pickup_dependent_id",
+      "LEFT JOIN pickup_contacts AS c ON c.id = b.pickup_contact_id",
       "WHERE p.role = 'student'",
       "AND ($1::uuid IS NULL OR t.id = $1::uuid)",
       "AND (",
@@ -51,7 +53,10 @@ staffBookingsRouter.get("/", async (req, res) => {
       pool.query(
         [
           "SELECT b.id, b.student_id, b.slot_id, b.status, b.week_start, b.booked_at,",
-          "b.cancelled_at, s.starts_at, s.ends_at,",
+          "b.cancelled_at, s.starts_at, s.ends_at, b.pickup_kind,",
+          "COALESCE(d.full_name,c.full_name) AS pickup_name,",
+          "COALESCE(d.status,c.status) AS pickup_status,",
+          "c.consent_given_at AS pickup_consent_at,",
           "p.email, p.first_name, p.last_name, t.code AS term_code, t.name AS term_name",
           filters,
           "ORDER BY",

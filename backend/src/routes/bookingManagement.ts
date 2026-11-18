@@ -2,6 +2,7 @@ import express from "express";
 import type { PoolClient } from "pg";
 import { pool } from "../db.js";
 import { currentAccount, requireRole, requireUser } from "../security/sessions.js";
+import { parsePickupChoice, verifyPickupChoice, PickupRuleError } from "../utils/pickup.js";
 
 export const bookingManagementRouter = express.Router();
 bookingManagementRouter.use(requireUser, requireRole("student"));
@@ -126,6 +127,10 @@ async function loadTarget(client: PoolClient, id: string): Promise<TargetSlot> {
 }
 
 function handleError(res: express.Response, error: unknown): void {
+  if (error instanceof PickupRuleError) {
+    res.status(error.status).json({ error: error.message });
+    return;
+  }
   if (error instanceof RuleError) {
     res.status(error.status).json({ error: error.message });
     return;
@@ -147,9 +152,13 @@ bookingManagementRouter.get("/history", async (req, res) => {
     const result = await pool.query(
       `
       SELECT b.id, b.slot_id, b.week_start, b.status, b.booked_at, b.cancelled_at,
+             b.pickup_kind, b.pickup_dependent_id, b.pickup_contact_id,
+             COALESCE(d.full_name,c.full_name) AS pickup_name,
              s.starts_at, s.ends_at
       FROM bookings AS b
       JOIN appointment_slots AS s ON s.id = b.slot_id
+      LEFT JOIN dependent_requests AS d ON d.id = b.pickup_dependent_id
+      LEFT JOIN pickup_contacts AS c ON c.id = b.pickup_contact_id
       WHERE b.student_id = $1
       ORDER BY b.booked_at DESC, b.id DESC
       LIMIT 30
@@ -337,6 +346,77 @@ bookingManagementRouter.post("/:bookingId/reschedule", async (req, res) => {
     if (client) {
       try { await client.query("ROLLBACK"); }
       catch (rollbackError) { console.error("Reschedule rollback failed:", rollbackError); }
+    }
+    handleError(res, error);
+  } finally {
+    client?.release();
+  }
+});
+
+
+// Student may change the person collecting the hamper up to the same cutoff.
+// Status/ownership are rechecked under a booking row lock. A confirmed
+// contact/dependent row is held FOR SHARE for the entire update.
+bookingManagementRouter.patch("/:bookingId/pickup", async (req, res) => {
+  const bookingId = req.params.bookingId;
+  if (typeof bookingId !== "string" || !uuidPattern.test(bookingId)) {
+    res.status(400).json({ error: "Invalid booking identifier" });
+    return;
+  }
+  let choice;
+  try {
+    choice = parsePickupChoice(req.body);
+  } catch (error) {
+    handleError(res, error);
+    return;
+  }
+  const studentId = currentAccount(req).id;
+  let client: PoolClient | undefined;
+  try {
+    client = await pool.connect();
+    await client.query("BEGIN");
+
+    // Acquire the target person's share lock before the booking row lock,
+    // consistent with consent withdrawal's contact -> booking ordering.
+    const pickup = await verifyPickupChoice(client, studentId, choice);
+    const booking = await loadOwnedBooking(client, bookingId, studentId);
+    ensureCanChange(booking);
+
+    const old = await client.query<{
+      pickup_kind: string;
+      pickup_dependent_id: string | null;
+      pickup_contact_id: string | null;
+    }>(
+      "SELECT pickup_kind, pickup_dependent_id, pickup_contact_id " +
+      "FROM bookings WHERE id=$1",
+      [bookingId]
+    );
+    if (old.rows[0]?.pickup_kind === pickup.pickup_kind &&
+        old.rows[0]?.pickup_dependent_id === pickup.pickup_dependent_id &&
+        old.rows[0]?.pickup_contact_id === pickup.pickup_contact_id) {
+      throw new RuleError(409, "This booking already has that pickup person");
+    }
+
+    await client.query(
+      `UPDATE bookings SET pickup_kind=$1, pickup_dependent_id=$2,
+                          pickup_contact_id=$3 WHERE id=$4`,
+      [
+        pickup.pickup_kind, pickup.pickup_dependent_id,
+        pickup.pickup_contact_id, bookingId
+      ]
+    );
+    await client.query(
+      `INSERT INTO booking_events (booking_id, actor_id, event_type, event_data)
+       VALUES ($1,$2,'pickup_updated',
+         jsonb_build_object('pickup_kind',$3::text,'reason','student_selected'))`,
+      [bookingId, studentId, pickup.pickup_kind]
+    );
+    await client.query("COMMIT");
+    res.json({ message: "Booking pickup person updated" });
+  } catch (error) {
+    if (client) {
+      try { await client.query("ROLLBACK"); }
+      catch (rollbackError) { console.error("Pickup update rollback failed:", rollbackError); }
     }
     handleError(res, error);
   } finally {
