@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 import { pool } from "../db.js";
 import { currentAccount, requireRole, requireUser } from "../security/sessions.js";
 import { parsePickupChoice, verifyPickupChoice, PickupRuleError } from "../utils/pickup.js";
+import { recordBookingNotice } from "../utils/bookingNotifications.js";
 
 export const bookingManagementRouter = express.Router();
 bookingManagementRouter.use(requireUser, requireRole("student"));
@@ -238,6 +239,8 @@ bookingManagementRouter.post("/:bookingId/cancel", async (req, res) => {
       `,
       [bookingId, studentId, booking.slot_id, booking.starts_at.toISOString()]
     );
+    await recordBookingNotice(client, studentId, bookingId,
+      "booking_cancelled", booking.starts_at);
 
     await client.query("COMMIT");
     res.json({ message: "Appointment cancelled. Its capacity is now available." });
@@ -340,6 +343,8 @@ bookingManagementRouter.post("/:bookingId/reschedule", async (req, res) => {
         booking.starts_at.toISOString(), target.starts_at.toISOString()
       ]
     );
+    await recordBookingNotice(client, studentId, bookingId,
+      "booking_rescheduled", booking.starts_at, target.starts_at);
     await client.query("COMMIT");
     res.json({ message: "Appointment rescheduled.", booking: updated.rows[0] });
   } catch (error) {
