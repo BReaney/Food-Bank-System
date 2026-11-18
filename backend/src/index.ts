@@ -100,25 +100,36 @@ interface SlotRow {
   remaining_capacity: number;
 }
 
-// Read-only endpoint: show upcoming slots, including full and closed slots.
-app.get("/api/slots", requireUser, async (_req, res) => {
+// Read-only availability contains no student identities. Staff-generated
+// schedules may have more than 50 future slots; optional month filtering
+// lets students browse each part of a long semester.
+app.get("/api/slots", requireUser, async (req, res) => {
+  const month = req.query.month;
+  if (month !== undefined &&
+      (typeof month !== "string" ||
+       !/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month))) {
+    res.status(400).json({ error: "month must be YYYY-MM" });
+    return;
+  }
   try {
     const result = await pool.query<SlotRow>(`
       SELECT id, term_id, starts_at, ends_at, capacity,
              is_open, booked_count, remaining_capacity
       FROM slot_availability
       WHERE starts_at >= NOW()
-      ORDER BY starts_at ASC
-      LIMIT 50
-    `);
-
-    // Express converts Date objects to ISO 8601 strings in the JSON.
-    res.json({ slots: result.rows });
+        AND ($1::text IS NULL OR
+          ((starts_at AT TIME ZONE 'America/Vancouver')::date >=
+             (($1::text || '-01')::date)
+           AND
+           (starts_at AT TIME ZONE 'America/Vancouver')::date <
+             (($1::text || '-01')::date + INTERVAL '1 month')))
+      ORDER BY starts_at ASC, id ASC
+      LIMIT 501
+    `, [month ?? null]);
+    res.json({ slots: result.rows.slice(0, 500), hasMore: result.rows.length > 500 });
   } catch (error) {
     console.error("Failed to load appointment slots:", error);
-    res.status(500).json({
-      error: "Unable to retrieve appointment slots"
-    });
+    res.status(500).json({ error: "Unable to retrieve appointment slots" });
   }
 });
 
