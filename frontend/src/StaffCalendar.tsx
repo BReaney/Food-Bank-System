@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import WeeklyPlanner, { WeekPicker } from "./WeeklyPlanner";
 import { addCalendarDays, clockLabel, localParts, todayVancouver, weekOf } from "./calendarDates";
+import { visibleCalendarSchedule } from "./calendarStateGuards";
 
 interface Term {
   id:string; code:string; name:string;
@@ -129,8 +130,7 @@ export default function StaffCalendar(){
     };
   },[refresh,refreshVersion]);
 
-  const currentSchedule = loadedSchedule?.termId===termId &&
-    loadedSchedule.week===week ? loadedSchedule : null;
+  const currentSchedule = visibleCalendarSchedule(loadedSchedule,week,termId);
   const slots = currentSchedule?.slots ?? [];
   const hasMore = currentSchedule?.hasMore ?? false;
   const selectedTerm=terms.find(t=>t.id===termId);
