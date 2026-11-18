@@ -5,3 +5,16 @@ dist/
 !.env.example
 coverage/
 *.log
+
+# Local development/editor and OS artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.tsbuildinfo
+*.local
+
+# Temporary test outputs and private working files
+testing/results/latest-run.*
+*.bak
+*.tmp
