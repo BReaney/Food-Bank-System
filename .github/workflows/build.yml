@@ -65,6 +65,9 @@ jobs:
           npm ci
           npm run build
 
+      - name: Validate documentation links and README contents
+        run: node testing/documentation/checkLinks.mjs
+
       - name: Test calendar UI state guards
         working-directory: frontend
         run: npm run test:calendar-state
