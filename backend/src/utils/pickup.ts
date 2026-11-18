@@ -97,10 +97,10 @@ export async function clearFuturePickupAssignments(
 
   for (const booking of result.rows) {
     await client.query(
-      \`INSERT INTO booking_events
+      `INSERT INTO booking_events
         (booking_id, actor_id, event_type, event_data)
        VALUES ($1, $2, 'pickup_updated',
-         jsonb_build_object('pickup_kind','self','reason',$3::text))\`,
+         jsonb_build_object('pickup_kind','self','reason',$3::text))`,
       [booking.id, actorId, reason]
     );
   }
