@@ -312,15 +312,25 @@ staffCalendarRouter.put("/terms/:termId", async (req, res) => {
 
 staffCalendarRouter.get("/slots", async (req, res) => {
   const termId = req.query.termId;
-  if (typeof termId !== "string" || !UUID.test(termId)) {
-    res.status(400).json({ error: "Term ID is required" }); return;
+  const month = req.query.month;
+  if (typeof termId !== "string" || !UUID.test(termId) ||
+      (month !== undefined && (typeof month !== "string" ||
+       !/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month)))) {
+    res.status(400).json({ error: "Valid term ID and optional YYYY-MM month are required" }); return;
   }
   try {
     const rows = await pool.query(
       `SELECT id,term_id,starts_at,ends_at,capacity,is_open,
               booked_count,remaining_capacity
-       FROM slot_availability WHERE term_id=$1 ORDER BY starts_at,id LIMIT 501`,
-      [termId]
+       FROM slot_availability
+       WHERE term_id=$1
+         AND ($2::text IS NULL OR
+           ((starts_at AT TIME ZONE 'America/Vancouver')::date >=
+             (($2::text || '-01')::date)
+            AND (starts_at AT TIME ZONE 'America/Vancouver')::date <
+             (($2::text || '-01')::date + INTERVAL '1 month')))
+       ORDER BY starts_at,id LIMIT 501`,
+      [termId,month??null]
     );
     res.json({ slots: rows.rows.slice(0,500), hasMore: rows.rows.length>500 });
   } catch (error) { reject(res, error); }
