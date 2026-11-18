@@ -93,7 +93,7 @@ staffHouseholdRouter.get("/contacts", (req, res) => {
 async function changeStatus(req: express.Request, res: express.Response, kind: Kind) {
   const id = req.params.id;
   const status: unknown = req.body?.status;
-  if (!UUID_PATTERN.test(id ?? "") ||
+  if (typeof id !== "string" || !UUID_PATTERN.test(id) ||
       (status !== "pending" && status !== "confirmed" && status !== "denied")) {
     res.status(400).json({ error: "Valid record ID and status are required" });
     return;
