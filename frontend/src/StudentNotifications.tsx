@@ -65,7 +65,7 @@ export default function StudentNotifications() {
           const params = new URLSearchParams({
             limit: String(PAGE_SIZE), offset: String(offset)
           });
-          const response = await fetch(API + "/api/notifications?" + params, {
+          const response = await fetch(API + "/api/notifications?" + params.toString(), {
             credentials: "include", cache: "no-store", signal: controller.signal
           });
           const data = await response.json() as {
