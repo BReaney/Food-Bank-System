@@ -70,19 +70,49 @@ Sign in as `staff.demo@example.com`, then go to **Staff calendar management**.
    cutoff; staff have to use care with closures.
 7. Reopen a closed future slot: previous cancellations are **not**
    automatically reinstated. Students may book normally once reopened.
-8. Use the optional month filter to manage large term schedules (first
-   500 slots per API request; filter by month to see additional dates).
+8. Use **Previous week**, **Next week**, **This week**, or the date picker
+   to navigate the weekly planner. Appointment cards are positioned by
+   their Vancouver-local day/time, with staff Edit/Close/Reopen actions
+   on the selected card. Only the selected week's slots are retrieved
+   (at most 500 per API request).
 
 **Time zone:** Inputs are interpreted in `America/Vancouver` even if
 the browser has a different local time zone. Avoid ambiguous times
 around the autumn daylight-saving clock change; nonexistent spring
 times are rejected. Real campus opening hours are staff-defined.
 
+## Week-at-a-glance planner
+
+The previous long month lists have been replaced by a reusable React
+`WeeklyPlanner` grid modeled on a paper weekly organizer: Monday–Sunday
+columns and times down the side. Both roles can move between weeks, jump
+to a date, or return to the current week. The planner shows an empty
+schedule when there are no slots, without hiding navigational controls.
+
+The time labels and week boundaries use `America/Vancouver` (rather
+than the browser's local timezone). The view automatically narrows its
+vertical hours to the times scheduled in the selected week, avoiding a
+needlessly long 24-hour view. Overlapping slots from separate terms
+appear in side-by-side lanes.
+
+Student cards distinguish open/full/closed/own-booking with visible
+status text, and their detail panel retains the existing confirmed
+dependent or pickup-contact booking flow. The staff detail panel retains
+slot edit and close/reopen actions. Students can navigate to a new
+week to view rescheduling alternatives.
+
+The backend accepts a validated Monday `week=YYYY-MM-DD` parameter,
+retains the legacy `month=YYYY-MM` filter, and rejects using both at
+once. This UI change has no new schema changes or dependencies beyond
+the already required staff-calendar migration 005.
+
 ## Student experience and privacy
 
-- `GET /api/slots` returns only slot timestamps, open/closed status,
-  booked count and remaining capacity—no student names or booking IDs.
-  Use the month input to browse beyond the original 50-slot cap.
+- `GET /api/slots?week=YYYY-MM-DD` returns only that Vancouver-local
+  **Monday–Sunday** week's upcoming slots, with timestamps, open/closed
+  status, booked count and remaining capacity—no student names or IDs.
+  The old optional `month=YYYY-MM` API filter remains supported for
+  compatibility, but the new student UI uses the weekly planner.
 - Students can still book, cancel and reschedule in their own account.
   Server rules—not stale browser buttons—decide what may be booked.
 - Each affected student receives their own `student_notifications` row
@@ -98,7 +128,7 @@ times are rejected. Real campus opening hours are staff-defined.
 | GET | `/api/staff/calendar/terms` | List terms and slot counts |
 | POST | `/api/staff/calendar/terms` | Create term |
 | PUT | `/api/staff/calendar/terms/:termId` | Edit term |
-| GET | `/api/staff/calendar/slots?termId=UUID&month=YYYY-MM` | List slots |
+| GET | `/api/staff/calendar/slots?termId=UUID&week=YYYY-MM-DD` | List only one Monday–Sunday week |
 | POST | `/api/staff/calendar/slots` | Create one slot |
 | PUT | `/api/staff/calendar/slots/:slotId` | Edit time/duration/capacity |
 | POST | `/api/staff/calendar/slots/:slotId/close` | Close and cancel active bookings |
@@ -128,8 +158,8 @@ Suggested manual checks:
 
 1. Create a fictional term covering a few weeks next month.
 2. Generate Monday/Wednesday/Friday slots from 09:00 to 11:00,
-   each 20 minutes long, capacity 2. Confirm the student calendar
-   shows the generated appointments, and the staff calendar lists them.
+   each 20 minutes long, capacity 2. Use Next week or Jump to date
+   to find those appointment cards in both weekly planners.
 3. Try generating the same interval again—expect an overlap rejection,
    with no new slots added.
 4. Have two eligible fictional students book the same capacity-2 slot.
@@ -144,8 +174,12 @@ Suggested manual checks:
    notice, while other students see the closed slot but no identities.
 8. Reopen the slot. Confirm it is available but does not silently
    restore previously cancelled reservations.
-9. Verify the student role gets HTTP 403 if it tries staff calendar
-   endpoints, and cannot mark another student's notice as read.
+9. Use the week navigation to switch to an empty week and back. Check
+   that a slot is rendered on the correct day and Vancouver-local hour,
+   that the student's selection panel can book it, and that the staff
+   selection panel can edit it without exposing other students' identities.
+10. Verify the student role gets HTTP 403 if it tries staff calendar
+    endpoints, and cannot mark another student's notice as read.
 
 ### Automated integration
 
@@ -165,8 +199,10 @@ at the user's request.
 
 ## Remaining boundaries
 
-- This is a list with month filtering; a full graphical calendar grid
-  is still part of future UI refinement.
+- Both student and staff appointment views use a seven-column weekly
+  planner with hourly guide lines, appointment cards, keyboard-accessible
+  selection, and horizontal scrolling for small screens. This is a
+  time-grid planner rather than a month list.
 - The current in-app notification inbox is not outbound email/SMS.
 - Staff complete/no-show appointment lifecycle and reporting remain
   separate milestones.
