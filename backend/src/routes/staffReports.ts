@@ -1,5 +1,4 @@
 import express from "express";
-import type { PoolClient } from "pg";
 import { pool } from "../db.js";
 import { requireUser, requireRole } from "../security/sessions.js";
 
@@ -137,9 +136,9 @@ async function buildUsageReport(
       throw new ReportError(422, "The report date range must stay within the selected term");
     }
     if (termId === "all" &&
-        (Date.parse(toDate) - Date.parse(fromDate)) / 86400000 > 366) {
+        (Date.parse(toDate) - Date.parse(fromDate)) / 86400000 > 365) {
       throw new ReportError(400,
-        "An all-terms report may cover at most 367 inclusive calendar dates");
+        "An all-terms report may cover at most 366 inclusive calendar dates");
     }
 
     const values = [termId, fromDate, toDate];
