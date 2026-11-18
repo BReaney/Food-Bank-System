@@ -1,0 +1,6 @@
+{
+  "name": "uvss-foodbank-acceptance-tests",
+  "private": true,
+  "type": "module",
+  "description": "Isolated, fictional-data RSD acceptance tests. Dependencies supplied by backend dev install."
+}

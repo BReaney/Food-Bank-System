@@ -1,0 +1,4 @@
+# Each test run generates transient, run-specific output.
+# GitHub Actions uploads the reports as downloadable evidence.
+latest-run.md
+latest-run.json
