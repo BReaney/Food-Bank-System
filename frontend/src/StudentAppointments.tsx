@@ -197,6 +197,11 @@ export default function StudentAppointments() {
         data && typeof data === "object" && "message" in data &&
         typeof data.message === "string" ? data.message : "Appointment saved";
       setMessage(success);
+      // Successful appointment writes also commit a private inbox notice.
+      // Refresh the inbox immediately; polling remains a fallback for staff changes.
+      if (method === "POST") {
+        window.dispatchEvent(new Event("student-notifications-changed"));
+      }
       setChoices({});
       setPickupChoices({});
     } catch (e) {

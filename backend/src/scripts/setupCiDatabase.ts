@@ -16,10 +16,11 @@ const migration2 = new URL("../../../database/migrations/002_auth.sql", import.m
 const migration3 = new URL("../../../database/migrations/003_enrollment_history.sql", import.meta.url);
 const migration4 = new URL("../../../database/migrations/004_household_pickups.sql", import.meta.url);
 const migration5 = new URL("../../../database/migrations/005_staff_calendar.sql", import.meta.url);
+const migration6 = new URL("../../../database/migrations/006_booking_notifications.sql", import.meta.url);
 const seed = new URL("../../../database/seed/demo.sql", import.meta.url);
 
 try {
-  for (const url of [migration1, migration2, migration3, migration4, migration5, seed]) {
+  for (const url of [migration1, migration2, migration3, migration4, migration5, migration6, seed]) {
     const sql = await readFile(url, "utf8");
     await pool.query(sql);
     console.log("Applied CI SQL fixture:", url.pathname.split("/").pop());
