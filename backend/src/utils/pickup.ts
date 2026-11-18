@@ -70,8 +70,50 @@ export async function verifyPickupChoice(
 }
 
 /**
- * When approval or consent is withdrawn, invalidate future designations
- * atomically. Keep the booking but restore pickup to the student; record
+ * Editing or removing a student-owned pickup record can indirectly change
+ * every booking currently assigned to that person. Apply the EXACT same
+ * term-specific cutoff as cancelling, rescheduling, and directly changing
+ * a booking's pickup person. The caller has already locked this person's
+ * record FOR UPDATE, which also blocks simultaneous new pickup selections.
+ *
+ * Only assigned, still-booked appointments are relevant. The student may
+ * still edit unused contact records and remove unused confirmed dependents.
+ * Staff safety revocations deliberately do NOT use this restriction.
+ */
+export async function assertStudentPickupRecordEditable(
+  client: PoolClient,
+  studentId: string,
+  kind: "dependent" | "third_party",
+  recordId: string
+): Promise<void> {
+  const column = kind === "dependent" ? "pickup_dependent_id" : "pickup_contact_id";
+  const result = await client.query(
+    `SELECT b.id FROM bookings AS b
+      JOIN appointment_slots AS s ON s.id = b.slot_id
+      JOIN terms AS t ON t.id = s.term_id
+      WHERE b.student_id = $1
+        AND b.` + column + ` = $2
+        AND b.status = 'booked'
+        AND s.starts_at <= clock_timestamp()
+           + t.cancellation_cutoff_hours * INTERVAL '1 hour'
+      ORDER BY b.id
+      LIMIT 1
+      FOR UPDATE OF b`,
+    [studentId, recordId]
+  );
+  if (result.rows.length) {
+    throw new PickupRuleError(
+      422,
+      "This person is assigned to an appointment inside its cancellation " +
+        "cutoff. Student-initiated changes are closed; contact staff for assistance."
+    );
+  }
+}
+
+/**
+ * When approval or consent is withdrawn, invalidate assignments on future
+ * or in-progress appointments atomically. Keep the booking but restore
+ * pickup to the student; record
  * a private in-app event so the student can see the change.
  *
  * Call with the dependent/contact row already locked FOR UPDATE, inside
@@ -90,7 +132,7 @@ export async function clearFuturePickupAssignments(
     "SET pickup_kind = 'self', pickup_dependent_id = NULL, pickup_contact_id = NULL " +
     "FROM appointment_slots AS s " +
     "WHERE b.slot_id = s.id AND b.status = 'booked' " +
-    "AND s.starts_at > NOW() AND b." + column + " = $1 " +
+    "AND s.ends_at > clock_timestamp() AND b." + column + " = $1 " +
     "RETURNING b.id",
     [recordId]
   );
