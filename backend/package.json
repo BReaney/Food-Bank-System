@@ -13,7 +13,8 @@
     "test:db-setup": "tsx src/scripts/setupCiDatabase.ts",
     "test:eligibility": "tsx src/scripts/eligibilitySmokeTest.ts",
     "test:pagination": "tsx src/scripts/staffPaginationSmokeTest.ts",
-    "test:booking-management": "tsx src/scripts/bookingManagementSmokeTest.ts"
+    "test:booking-management": "tsx src/scripts/bookingManagementSmokeTest.ts",
+    "test:household": "tsx src/scripts/householdSmokeTest.ts"
   },
   "keywords": [],
   "author": "",
