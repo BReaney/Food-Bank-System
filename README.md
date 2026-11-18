@@ -61,14 +61,14 @@ A full-stack appointment-booking and staff-management application built with **R
 
 ## Architecture
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
     A["React + TypeScript\nVite (localhost:5173)"]
     B["Express REST API\nNode.js (localhost:3001)"]
     C[("PostgreSQL\nfoodbank_dev")]
     A -->|"HTTP + session cookie"| B
     B -->|"Parameterized SQL / transactions"| C
-\`\`\`
+```
 
 The frontend never connects directly to the database. Express validates the signed-in account and permissions; PostgreSQL persists records, provides referential constraints, and supports transactional booking and notification updates.
 
@@ -82,14 +82,14 @@ These instructions are for a **new checkout and a new, empty local database**. T
 
 - **Git** — to clone the repository.
 - **Node.js 24** and npm — matches the GitHub Actions build environment.
-- **PostgreSQL 17** (or a compatible recent release) and either **pgAdmin 4** or the \`psql\` command-line client.
+- **PostgreSQL 17** (or a compatible recent release) and either **pgAdmin 4** or the `psql` command-line client.
 - A local development computer. Ports **5432** (PostgreSQL), **3001** (Express), and **5173** (Vite) should be available.
 
 No production hosting or third-party accounts are required.
 
 ### 1. Clone and install dependencies
 
-\`\`\`powershell
+```powershell
 git clone https://github.com/BReaney/Food-Bank-System.git
 cd Food-Bank-System
 
@@ -100,42 +100,42 @@ cd ../frontend
 npm ci
 
 cd ..
-\`\`\`
+```
 
-There are two npm projects, so their dependencies are installed separately. \`npm ci\` uses each folder's committed lockfile.
+There are two npm projects, so their dependencies are installed separately. `npm ci` uses each folder's committed lockfile.
 
 ### 2. Create an empty local PostgreSQL database
 
-Open **pgAdmin** and connect to your local PostgreSQL server as the administrator (usually \`postgres\`). In the Query Tool connected to the **postgres** maintenance database, run:
+Open **pgAdmin** and connect to your local PostgreSQL server as the administrator (usually `postgres`). In the Query Tool connected to the **postgres** maintenance database, run:
 
-\`\`\`sql
+```sql
 CREATE ROLE foodbank_app WITH LOGIN PASSWORD 'REPLACE_WITH_A_STRONG_LOCAL_PASSWORD';
-\`\`\`
+```
 
 Execute the next statement **separately** (not inside a multi-statement transaction):
 
-\`\`\`sql
+```sql
 CREATE DATABASE foodbank_dev OWNER foodbank_app;
-\`\`\`
+```
 
 Use a strong password of your own and keep it private. If the role or database already exists, **do not recreate it**. Instead follow the existing-database instructions in [Database setup](database/README.md).
 
-In pgAdmin register a local connection with **Host:** \`localhost\`, **Port:** \`5432\`, **Maintenance database:** \`foodbank_dev\`, **User:** \`foodbank_app\` and the password chosen above. Run the following migrations as this application user.
+In pgAdmin register a local connection with **Host:** `localhost`, **Port:** `5432`, **Maintenance database:** `foodbank_dev`, **User:** `foodbank_app` and the password chosen above. Run the following migrations as this application user.
 
 ### 3. Apply database migrations, in order
 
 From the **repository root** in PowerShell:
 
-\`\`\`powershell
+```powershell
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/001_core.sql
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/002_auth.sql
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/003_enrollment_history.sql
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/004_household_pickups.sql
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/005_staff_calendar.sql
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/006_booking_notifications.sql
-\`\`\`
+```
 
-If \`psql\` is unavailable, open **each SQL file in order** using pgAdmin's Query Tool connected as \`foodbank_app\` to \`foodbank_dev\`, and execute it once.
+If `psql` is unavailable, open **each SQL file in order** using pgAdmin's Query Tool connected as `foodbank_app` to `foodbank_dev`, and execute it once.
 
 **Migrations 001–006 are one-time migrations for a new database. Do not re-run them against an existing configured database.** No migration runner is installed.
 
@@ -143,25 +143,25 @@ If \`psql\` is unavailable, open **each SQL file in order** using pgAdmin's Quer
 
 From the repository root:
 
-\`\`\`powershell
+```powershell
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/seed/demo.sql
-\`\`\`
+```
 
-Or run \`database/seed/demo.sql\` in pgAdmin. This provides a demonstration term and sample appointment slot. It contains **only fictional sample records**.
+Or run `database/seed/demo.sql` in pgAdmin. This provides a demonstration term and sample appointment slot. It contains **only fictional sample records**.
 
 ### 5. Configure the private backend environment
 
 From the repository root in **PowerShell**:
 
-\`\`\`powershell
+```powershell
 Copy-Item backend/.env.example backend/.env
-\`\`\`
+```
 
-On macOS/Linux use \`cp backend/.env.example backend/.env\`.
+On macOS/Linux use `cp backend/.env.example backend/.env`.
 
-Open \`backend/.env\` in your editor. Replace \`PGPASSWORD\` with your own local \`foodbank_app\` password; set **two different strong passwords (12–128 characters)** for \`DEMO_STAFF_PASSWORD\` and \`DEMO_STUDENT_PASSWORD\`. Keep:
+Open `backend/.env` in your editor. Replace `PGPASSWORD` with your own local `foodbank_app` password; set **two different strong passwords (12–128 characters)** for `DEMO_STAFF_PASSWORD` and `DEMO_STUDENT_PASSWORD`. Keep:
 
-\`\`\`dotenv
+```dotenv
 PGHOST=localhost
 PGPORT=5432
 PGDATABASE=foodbank_dev
@@ -173,28 +173,28 @@ FRONTEND_ORIGIN=http://localhost:5173
 
 DEMO_STAFF_PASSWORD=YOUR_PRIVATE_FICTIONAL_STAFF_PASSWORD
 DEMO_STUDENT_PASSWORD=YOUR_DIFFERENT_FICTIONAL_STUDENT_PASSWORD
-\`\`\`
+```
 
-**Never commit \`backend/.env\` or real passwords.** The real file is ignored by Git; \`backend/.env.example\` is the safe template.
+**Never commit `backend/.env` or real passwords.** The real file is ignored by Git; `backend/.env.example` is the safe template.
 
 ### 6. Provision the fictional logins
 
 In a terminal at the repository root:
 
-\`\`\`powershell
+```powershell
 cd backend
 npm run seed:demo-accounts
 cd ..
-\`\`\`
+```
 
 This provisions local, fictional authentication credentials for:
 
 | Role | Demo email | Password |
 |---|---|---|
-| Staff | \`staff.demo@example.com\` | Your \`DEMO_STAFF_PASSWORD\` |
-| Student | \`alex.demo@example.com\` | Your \`DEMO_STUDENT_PASSWORD\` |
+| Staff | `staff.demo@example.com` | Your `DEMO_STAFF_PASSWORD` |
+| Student | `alex.demo@example.com` | Your `DEMO_STUDENT_PASSWORD` |
 
-**Note:** Rerunning this provisioning command **resets both demo passwords** to the current \`.env\` values. It does not erase their appointment histories.
+**Note:** Rerunning this provisioning command **resets both demo passwords** to the current `.env` values. It does not erase their appointment histories.
 
 ### 7. Run the application
 
@@ -202,17 +202,17 @@ Start each server in a **separate terminal**, starting from the repository root:
 
 **Terminal A — API**
 
-\`\`\`powershell
+```powershell
 cd backend
 npm run dev
-\`\`\`
+```
 
 **Terminal B — Web application**
 
-\`\`\`powershell
+```powershell
 cd frontend
 npm run dev
-\`\`\`
+```
 
 Open **http://localhost:5173** in your browser.
 
@@ -220,12 +220,12 @@ Open **http://localhost:5173** in your browser.
 - **API health:** http://localhost:3001/api/health
 - **Database health (local only):** http://localhost:3001/api/db-health
 
-Do not expect a website at \`http://localhost:3001/\`; port 3001 serves the JSON API.
+Do not expect a website at `http://localhost:3001/`; port 3001 serves the JSON API.
 
 ## How to use the demo
 
-1. Sign in as \`staff.demo@example.com\`. Open **Calendar & slots** to inspect the demonstration term and create additional slots when needed.
-2. Sign out and sign in as \`alex.demo@example.com\`, or use **Create a student profile** with a fictional \`@example.test\` address.
+1. Sign in as `staff.demo@example.com`. Open **Calendar & slots** to inspect the demonstration term and create additional slots when needed.
+2. Sign out and sign in as `alex.demo@example.com`, or use **Create a student profile** with a fictional `@example.test` address.
 3. Student pages include **Book & manage appointments**, **Eligibility & enrollment**, **Dependents & pickup contacts**, **Notifications**, and **My profile**.
 4. Newly registered fictional students must submit the term survey and be **verified by staff** before booking. The pre-seeded Alex account has demo-term verification data.
 5. Use an eligible available appointment slot, inspect the private confirmation, and test cancellation or rescheduling before the configured cutoff.
@@ -242,26 +242,26 @@ The repository includes both pre-existing regression suites and a dedicated RSD 
 - [Testing guide](testing/README.md) — details the suite, execution reports, manual checks, and intentional deferrals.
 - [GitHub Actions](https://github.com/BReaney/Food-Bank-System/actions/workflows/build.yml) — builds both applications and tests against a **disposable** PostgreSQL service.
 
-For an extra local check, **keep your backend running**, and from \`backend/\` execute:
+For an extra local check, **keep your backend running**, and from `backend/` execute:
 
-\`\`\`powershell
+```powershell
 npm run build
 npm run test:acceptance
-\`\`\`
+```
 
-From \`frontend/\`:
+From `frontend/`:
 
-\`\`\`powershell
+```powershell
 npm run build
 npm run test:navigation
 npm run test:calendar-state
-\`\`\`
+```
 
-Acceptance tests create and clean up **fictional** local fixture records. **Do not run \`npm run test:db-setup\` on your own persistent database:** that script is only for the disposable CI fixture. See the testing guide before running the full suite.
+Acceptance tests create and clean up **fictional** local fixture records. **Do not run `npm run test:db-setup` on your own persistent database:** that script is only for the disposable CI fixture. See the testing guide before running the full suite.
 
 ## Repository structure
 
-\`\`\`text
+```text
 Food-Bank-System/
 ├── .github/workflows/      # Full-stack build and test automation
 ├── backend/
@@ -283,7 +283,7 @@ Food-Bank-System/
 │   ├── requirements-matrix.md
 │   └── test-results.md     # Verified, committed result snapshot
 └── README.md
-\`\`\`
+```
 
 ## Known limitations and security
 
@@ -296,7 +296,7 @@ This is a **local-only, fictional-data** prototype. In particular:
 - No production authorization, privacy-policy approval, operational uptime or security review.
 - The RSD's 1,100-account performance target, 10 simultaneous bookings and strict response-time benchmarks have **not** been formally verified at scale.
 
-The backend deliberately disables protected prototype APIs outside its configured localhost development gate or when \`NODE_ENV=production\`. **Do not bypass that gate to make this project publicly accessible. Do not use real student information.**
+The backend deliberately disables protected prototype APIs outside its configured localhost development gate or when `NODE_ENV=production`. **Do not bypass that gate to make this project publicly accessible. Do not use real student information.**
 
 More details: [Architecture](docs/architecture.md) · [Data setup](database/README.md) · [Test coverage and deferred cases](testing/requirements-matrix.md).
 
@@ -304,12 +304,12 @@ More details: [Architecture](docs/architecture.md) · [Data setup](database/READ
 
 | Symptom | What to check |
 |---|---|
-| \`psql\` is not recognized | Use pgAdmin Query Tool instead, or add PostgreSQL's \`bin\` folder to your PATH |
-| \`CREATE DATABASE cannot run inside a transaction block\` | Run \`CREATE ROLE\` and \`CREATE DATABASE\` in **separate** Query Tool executions |
-| Database health responds \`status: error\` | Check PostgreSQL is running and \`PGHOST\`, \`PGUSER\`, \`PGDATABASE\`, \`PGPASSWORD\` in \`backend/.env\` |
-| \`password authentication failed\` (PostgreSQL 28P01) | Check that the app user's database password matches \`PGPASSWORD\` |
-| Protected API responds \`404\` | Check \`ENABLE_PROTOTYPE_AUTH=true\`, local access, and that \`NODE_ENV\` is not \`production\` |
-| Sign-in fails | Rerun \`npm run seed:demo-accounts\` **from \`backend/\`** if credentials were never provisioned; note it resets demo passwords |
+| `psql` is not recognized | Use pgAdmin Query Tool instead, or add PostgreSQL's `bin` folder to your PATH |
+| `CREATE DATABASE cannot run inside a transaction block` | Run `CREATE ROLE` and `CREATE DATABASE` in **separate** Query Tool executions |
+| Database health responds `status: error` | Check PostgreSQL is running and `PGHOST`, `PGUSER`, `PGDATABASE`, `PGPASSWORD` in `backend/.env` |
+| `password authentication failed` (PostgreSQL 28P01) | Check that the app user's database password matches `PGPASSWORD` |
+| Protected API responds `404` | Check `ENABLE_PROTOTYPE_AUTH=true`, local access, and that `NODE_ENV` is not `production` |
+| Sign-in fails | Rerun `npm run seed:demo-accounts` **from `backend/`** if credentials were never provisioned; note it resets demo passwords |
 | No appointment slots available | Use the staff calendar to create future slots within an active term, and confirm student enrollment/survey eligibility |
 
 ## Documentation
