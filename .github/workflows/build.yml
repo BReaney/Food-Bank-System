@@ -98,3 +98,12 @@ jobs:
           npm run test:staff-outcomes
           npm run test:reporting
           npm run test:staff-records
+          npm run test:acceptance
+
+      - name: Upload acceptance results (even when assertions fail)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rsd-acceptance-results
+          path: testing/results/latest-run.*
+          if-no-files-found: warn
