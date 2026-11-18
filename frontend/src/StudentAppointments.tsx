@@ -98,12 +98,15 @@ async function fetchData<T>(path: string, signal?: AbortSignal): Promise<T> {
 }
 
 export default function StudentAppointments() {
-  const [slots, setSlots] = useState<Slot[]>([]);
+  // Retain the week associated with each response so the previous
+  // week's slots can never be selected during week navigation.
+  const [loadedWeek, setLoadedWeek] = useState<{
+    week: string; slots: Slot[]; hasMore: boolean;
+  } | null>(null);
   const [week, setWeek] = useState(() =>
     weekOf(addCalendarDays(todayVancouver(), 7))
   );
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
-  const [slotsTruncated, setSlotsTruncated] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [events, setEvents] = useState<EventRecord[]>([]);
@@ -118,6 +121,10 @@ export default function StudentAppointments() {
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const requestNumber = useRef(0);
+  const visibleWeek = loadedWeek?.week === week ? loadedWeek : null;
+  const slots = visibleWeek?.slots ?? [];
+  const slotsTruncated = visibleWeek?.hasMore ?? false;
+  const isLoadingWeek = visibleWeek === null;
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
     const requestId = ++requestNumber.current;
@@ -132,8 +139,7 @@ export default function StudentAppointments() {
       ]);
       if (signal?.aborted || requestId !== requestNumber.current) return;
 
-      setSlots(slotResult.slots);
-      setSlotsTruncated(slotResult.hasMore);
+      setLoadedWeek({ week, slots: slotResult.slots, hasMore: slotResult.hasMore });
       setBookings(bookingResult.bookings);
       setHistory(historyResult.bookings);
       setEvents(eventResult.events);
@@ -225,8 +231,11 @@ export default function StudentAppointments() {
         </p>
 
         <WeekPicker week={week} onChange={next => {
+          // A slot chosen in another week is never a valid target in the
+          // newly displayed week, even before its availability finishes loading.
           setWeek(next);
           setSelectedSlotId(null);
+          setChoices({});
         }} />
         <p className="auth-muted">
           Select an appointment block to review its available spaces. Green
@@ -236,7 +245,9 @@ export default function StudentAppointments() {
           This week contains more than 500 slots. Only the first 500 are shown.
           Contact staff if you cannot locate an appointment.
         </p>}
-        <WeeklyPlanner
+        {isLoadingWeek && !error &&
+          <p role="status">Loading appointments for the selected week...</p>}
+        {!isLoadingWeek && <WeeklyPlanner
           week={week}
           slots={slots}
           ariaLabel="Student weekly appointment planner"
@@ -259,7 +270,7 @@ export default function StudentAppointments() {
               </button>
             );
           }}
-        />
+        />}
         {(() => {
           const slot = slots.find(value => value.id === selectedSlotId);
           if (!slot) return null;
@@ -321,7 +332,11 @@ export default function StudentAppointments() {
               slot.id !== booking.slot_id &&
               slot.is_open && slot.remaining_capacity > 0
             );
-            const selected = choices[booking.id] ?? "";
+            // Never permit a stale, full or hidden slot ID to be sent in
+            // a rescheduling request, even if availability refreshes.
+            const selected = alternatives.some(slot =>
+              slot.id === choices[booking.id]
+            ) ? choices[booking.id] : "";
             return (
               <li key={booking.id}>
                 <strong>{dateLabel(booking.starts_at)}</strong>
