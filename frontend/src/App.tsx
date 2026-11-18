@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import "./auth.css";
 import StudentEligibility from "./StudentEligibility";
 import StaffEnrollment from "./StaffEnrollment";
-import StaffDirectory from "./StaffDirectory";
+import StaffRecords from "./StaffRecords";
 import StaffAppointments from "./StaffAppointments";
 import StaffCalendar from "./StaffCalendar";
 import StaffReports from "./StaffReports";
@@ -229,12 +229,13 @@ function App() {
             </>
           ) : (
             <>
+            <StaffRecords />
             <StaffReports />
             <StaffCalendar />
             <StaffAppointments />
             <StaffHousehold />
             <StaffEnrollment />
-            <StaffDirectory />
+
             </>
           )}
         </>

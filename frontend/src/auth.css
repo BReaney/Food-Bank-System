@@ -508,3 +508,67 @@
   }
   .report-trend-list { padding: 8px; }
 }
+
+
+/* Unified records: separate search and detail regions, stacking on phones. */
+.staff-records-layout {
+  display: grid;
+  grid-template-columns: minmax(235px, 1fr) minmax(0, 1.75fr);
+  gap: 18px;
+  align-items: start;
+}
+.staff-records-layout > div { min-width: 0; }
+.staff-records-layout h3 { margin-top: 8px; }
+.staff-record-results { gap: 8px; }
+.staff-record-results li { overflow-wrap: anywhere; }
+.staff-record-results button[aria-pressed="true"] {
+  border: 2px solid #4d62b4;
+  font-weight: 700;
+}
+.staff-record-email { overflow-wrap: anywhere; }
+.staff-record-detail {
+  border-left: 1px solid var(--border, #ddd);
+  padding-left: 18px;
+  min-width: 0;
+}
+.staff-record-detail h4 {
+  font-size: 1rem;
+  margin: 20px 0 8px;
+}
+.staff-record-profile {
+  padding: 12px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+}
+.staff-record-profile h4 { margin-top: 0; }
+.staff-record-timeline {
+  list-style: none;
+  margin: 10px 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.staff-record-timeline > li {
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.staff-record-timeline details { margin-top: 8px; }
+.staff-record-timeline summary { cursor: pointer; font-weight: 600; }
+.staff-record-timeline summary:focus-visible {
+  outline: 3px solid #6666cb; outline-offset: 2px;
+}
+.staff-record-timeline details ul { padding-left: 19px; }
+.auth-page:has(.staff-records-layout) {
+  width: min(100%, 1126px);
+}
+@media (max-width: 720px) {
+  .staff-records-layout { grid-template-columns: minmax(0, 1fr); }
+  .staff-record-detail {
+    border-left: 0;
+    border-top: 1px solid var(--border, #ddd);
+    padding-left: 0;
+    padding-top: 16px;
+  }
+}
