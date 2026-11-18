@@ -6,6 +6,8 @@ import { bookingManagementRouter } from "./routes/bookingManagement.js";
 import { staffBookingsRouter } from "./routes/staffBookings.js";
 import { householdRouter } from "./routes/household.js";
 import { staffHouseholdRouter } from "./routes/staffHousehold.js";
+import { staffCalendarRouter } from "./routes/staffCalendar.js";
+import { notificationsRouter } from "./routes/notifications.js";
 import { authRouter } from "./routes/auth.js";
 import { profileRouter } from "./routes/profiles.js";
 import { staffRouter } from "./routes/staff.js";
@@ -28,7 +30,7 @@ app.use(express.json({ limit: "16kb" }));
 app.use("/api", (req, res, next) => {
   // Never cache user-specific or rapidly changing appointment data.
   res.set("Cache-Control", "no-store");
-  const protectedPaths = ["/auth", "/profile", "/staff", "/slots", "/bookings", "/eligibility", "/terms", "/household"];
+  const protectedPaths = ["/auth", "/profile", "/staff", "/slots", "/bookings", "/eligibility", "/terms", "/household", "/notifications"];
   if (!protectedPaths.some(path => req.path === path || req.path.startsWith(path + "/"))) {
     next();
     return;
@@ -132,6 +134,8 @@ app.use("/api/bookings", bookingManagementRouter);
 app.use("/api/staff/bookings", staffBookingsRouter);
 app.use("/api/household", householdRouter);
 app.use("/api/staff/household", staffHouseholdRouter);
+app.use("/api/staff/calendar", staffCalendarRouter);
+app.use("/api/notifications", notificationsRouter);
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
