@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 import { pool } from "../db.js";
 import { currentAccount, requireRole, requireUser } from "../security/sessions.js";
 import { parsePickupChoice, verifyPickupChoice, PickupRuleError } from "../utils/pickup.js";
+import { recordBookingNotice } from "../utils/bookingNotifications.js";
 
 // Each booking is owned by the authenticated student session.
 export const bookingsRouter = express.Router();
@@ -20,6 +21,7 @@ class BookingRuleError extends Error {
 interface LockedSlot {
   id: string;
   term_id: string;
+  starts_at: Date;
   capacity: number;
   is_open: boolean;
   week_start: string;
@@ -89,7 +91,7 @@ bookingsRouter.post("/", async (req, res) => {
     // is calculated from the slot's Vancouver-local start time, not the UI.
     const slotResult = await client.query<LockedSlot>(
       `
-      SELECT s.id, s.term_id, s.capacity, s.is_open,
+      SELECT s.id, s.term_id, s.starts_at, s.capacity, s.is_open,
              to_char(
                date_trunc('week', s.starts_at AT TIME ZONE 'America/Vancouver'),
                'YYYY-MM-DD'
@@ -222,6 +224,8 @@ bookingsRouter.post("/", async (req, res) => {
       [created.rows[0].id, student.id, slot.id, pickup.pickup_kind]
     );
 
+    await recordBookingNotice(client, student.id, created.rows[0].id,
+      "booking_confirmed", slot.starts_at);
     await client.query("COMMIT");
     res.status(201).json({ booking: created.rows[0] });
   } catch (error) {
