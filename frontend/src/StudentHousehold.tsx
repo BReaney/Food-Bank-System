@@ -156,7 +156,9 @@ export default function StudentHousehold() {
         <p className="auth-muted">
           Request staff confirmation before using a dependent on a booking.
           Only confirmed dependents may be removed, as specified by the RSD.
-          Use fictional names only.
+          If a dependent is assigned to an appointment inside the change cutoff
+          (24 hours by default), you must contact staff to change the pickup
+          authorization. Use fictional names only.
         </p>
         <form className="auth-fields" onSubmit={e => void addDependent(e)}>
           <label>
@@ -207,6 +209,10 @@ export default function StudentHousehold() {
           A third-party contact can collect your hamper only after you provide
           consent and staff confirms the request. Editing a confirmed contact
           resets approval to pending; removing one withdraws authorization.
+          You cannot edit or remove a contact assigned to an appointment
+          inside its cancellation/change cutoff (24 hours by default).
+          The same rule applies to all student-initiated appointment edits;
+          contact staff for urgent pickup authorization changes.
         </p>
         <form className="auth-fields" onSubmit={e => void saveContact(e)}>
           {editingId && <p><strong>Editing pickup contact</strong></p>}
