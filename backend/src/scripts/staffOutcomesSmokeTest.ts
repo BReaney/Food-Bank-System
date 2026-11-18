@@ -94,12 +94,12 @@ try {
 
   // Past slots are inserted directly because the real calendar API
   // correctly refuses to schedule appointments in the past.
-  const slots = await pool.query<{ id: string; days: number }>(
+  const slots = await pool.query<{ id: string }>(
     `INSERT INTO appointment_slots (term_id, starts_at, ends_at, capacity)
-     SELECT $1, NOW()+days*INTERVAL '1 day',
-       NOW()+days*INTERVAL '1 day'+INTERVAL '20 minutes', 1
-     FROM unnest(ARRAY[-24,-10,14,-38]::integer[]) AS days
-     RETURNING id, EXTRACT(day FROM NOW()-starts_at)::integer AS days`,
+     SELECT $1, NOW()+v.days*INTERVAL '1 day',
+       NOW()+v.days*INTERVAL '1 day'+INTERVAL '20 minutes', 1
+     FROM unnest(ARRAY[-24,-10,14,-38]::integer[]) AS v(days)
+     RETURNING id`,
     [termId]
   );
   assert.equal(slots.rows.length, 4);
