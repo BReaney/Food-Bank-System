@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:calendar-state": "node --test tests/calendarStateGuards.test.mjs"
+    "test:calendar-state": "node --test tests/calendarStateGuards.test.mjs",
+    "test:navigation": "node --test tests/pageNavigation.test.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",

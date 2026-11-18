@@ -69,6 +69,10 @@ jobs:
         working-directory: frontend
         run: npm run test:calendar-state
 
+      - name: Test role-scoped page navigation
+        working-directory: frontend
+        run: npm run test:navigation
+
       - name: Prepare fictional database and accounts
         working-directory: backend
         run: |

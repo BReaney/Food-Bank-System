@@ -1,3 +1,4 @@
+// Existing feature screens stay unchanged; only their page-level composition moves.
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import "./auth.css";
@@ -11,6 +12,9 @@ import StudentNotifications from "./StudentNotifications";
 import StudentAppointments from "./StudentAppointments";
 import StudentHousehold from "./StudentHousehold";
 import StaffHousehold from "./StaffHousehold";
+import {
+  canonicalPageHash, pageHash, pagesForRole, resolvePage
+} from "./pageNavigation";
 
 interface Profile {
   id: string;
@@ -51,6 +55,32 @@ function App() {
   const [editingLast, setEditingLast] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
+  const [pageHashValue, setPageHashValue] = useState(() => window.location.hash);
+  const activePage = profile ? resolvePage(profile.role, pageHashValue) : null;
+
+  // Hash URLs make each page bookmarkable and keep Back/Forward working without
+  // adding a router or changing the Express/Vite server configuration.
+  useEffect(() => {
+    const onHashChange = () => setPageHashValue(window.location.hash);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (!profile) return;
+    const canonical = canonicalPageHash(profile.role, pageHashValue);
+    if (window.location.hash !== canonical) {
+      window.history.replaceState(null, "", canonical);
+      setPageHashValue(canonical);
+    }
+  }, [profile, pageHashValue]);
+
+  useEffect(() => {
+    if (!profile || !activePage) return;
+    // Focus the newly displayed page heading for keyboard/screen reader users.
+    document.getElementById("app-page-heading")?.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  }, [profile?.id, activePage?.id]);
 
   async function refreshSession() {
     try {
@@ -193,50 +223,80 @@ function App() {
         </section>
       ) : (
         <>
-          <section className="auth-panel">
-            <div className="auth-actions">
-              <strong>Signed in as {profile.email} ({profile.role})</strong>
-              <button type="button" onClick={() => void logout()} disabled={busy}>
-                Sign out
-              </button>
+          <div className="app-account-bar">
+            <span>
+              Signed in as <strong>{profile.email}</strong>
+              <span className="app-role-label">{profile.role === "staff" ? "Staff" : "Student"}</span>
+            </span>
+            <button type="button" onClick={() => void logout()} disabled={busy}>
+              Sign out
+            </button>
+          </div>
+
+          {activePage && (
+            <div className="app-workspace">
+              <nav className="app-page-nav" aria-label={profile.role === "staff" ? "Staff pages" : "Student pages"}>
+                <h2 className="app-nav-heading">Navigate</h2>
+                <div className="app-nav-items">
+                  {pagesForRole(profile.role).map(page => (
+                    <a
+                      key={page.id}
+                      className="app-nav-link"
+                      href={pageHash(profile.role, page.id)}
+                      aria-current={activePage.id === page.id ? "page" : undefined}
+                    >
+                      {page.label}
+                    </a>
+                  ))}
+                </div>
+              </nav>
+
+              <section className="app-page-content" aria-labelledby="app-page-heading">
+                <header className="app-page-header">
+                  <h2 id="app-page-heading" tabIndex={-1}>{activePage.label}</h2>
+                  <p className="auth-muted">{activePage.description}</p>
+                </header>
+
+                {activePage.id === "profile" ? (
+                  <section className="auth-panel" aria-labelledby="profile-title">
+                    <h2 id="profile-title">Account information</h2>
+                    <form className="auth-fields" onSubmit={event => void saveProfile(event)}>
+                      <label>
+                        First name
+                        <input required maxLength={100} value={editingFirst}
+                          onChange={event => setEditingFirst(event.target.value)} />
+                      </label>
+                      <label>
+                        Last name
+                        <input required maxLength={100} value={editingLast}
+                          onChange={event => setEditingLast(event.target.value)} />
+                      </label>
+                      <button type="submit" disabled={busy}>Save profile</button>
+                    </form>
+                    <p className="auth-muted">
+                      Email and account role are read-only. Editing those values requires
+                      additional verification workflows.
+                    </p>
+                  </section>
+                ) : profile.role === "student" ? (
+                  <>
+                    {activePage.id === "appointments" && <StudentAppointments />}
+                    {activePage.id === "eligibility" && <StudentEligibility />}
+                    {activePage.id === "household" && <StudentHousehold />}
+                    {activePage.id === "notifications" && <StudentNotifications />}
+                  </>
+                ) : (
+                  <>
+                    {activePage.id === "calendar" && <StaffCalendar />}
+                    {activePage.id === "appointments" && <StaffAppointments />}
+                    {activePage.id === "enrollment" && <StaffEnrollment />}
+                    {activePage.id === "household" && <StaffHousehold />}
+                    {activePage.id === "records" && <StaffRecords />}
+                    {activePage.id === "reports" && <StaffReports />}
+                  </>
+                )}
+              </section>
             </div>
-            <h2>My profile</h2>
-            <form className="auth-fields" onSubmit={event => void saveProfile(event)}>
-              <label>
-                First name
-                <input required maxLength={100} value={editingFirst}
-                  onChange={event => setEditingFirst(event.target.value)} />
-              </label>
-              <label>
-                Last name
-                <input required maxLength={100} value={editingLast}
-                  onChange={event => setEditingLast(event.target.value)} />
-              </label>
-              <button type="submit" disabled={busy}>Save profile</button>
-            </form>
-            <p className="auth-muted">
-              Email and account role are read-only. Editing those values requires
-              additional verification workflows.
-            </p>
-          </section>
-
-          {profile.role === "student" ? (
-            <>
-              <StudentEligibility />
-              <StudentHousehold />
-              <StudentNotifications />
-              <StudentAppointments />
-            </>
-          ) : (
-            <>
-            <StaffRecords />
-            <StaffReports />
-            <StaffCalendar />
-            <StaffAppointments />
-            <StaffHousehold />
-            <StaffEnrollment />
-
-            </>
           )}
         </>
       )}
