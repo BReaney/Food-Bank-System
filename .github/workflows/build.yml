@@ -65,6 +65,10 @@ jobs:
           npm ci
           npm run build
 
+      - name: Test calendar UI state guards
+        working-directory: frontend
+        run: npm run test:calendar-state
+
       - name: Prepare fictional database and accounts
         working-directory: backend
         run: |

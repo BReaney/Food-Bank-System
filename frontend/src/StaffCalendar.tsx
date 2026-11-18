@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import WeeklyPlanner, { WeekPicker } from "./WeeklyPlanner";
 import { addCalendarDays, clockLabel, localParts, todayVancouver, weekOf } from "./calendarDates";
+import { visibleCalendarSchedule } from "./calendarStateGuards";
 
 interface Term {
   id:string; code:string; name:string;
@@ -41,9 +42,11 @@ function dateLabel(value:string):string {
     timeZone:"America/Vancouver",dateStyle:"medium",timeStyle:"short"
   });
 }
-async function api<T>(path:string,method="GET",body?:unknown):Promise<T>{
+async function api<T>(
+  path:string, method="GET", body?:unknown, signal?:AbortSignal
+):Promise<T>{
   const result=await fetch(API+path,{
-    credentials:"include",cache:"no-store",method,
+    credentials:"include",cache:"no-store",method,signal,
     ...(body===undefined?{}:{
       headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
     })
@@ -56,12 +59,15 @@ async function api<T>(path:string,method="GET",body?:unknown):Promise<T>{
 export default function StaffCalendar(){
   const [terms,setTerms]=useState<Term[]>([]);
   const [termId,setTermId]=useState("");
-  const [slots,setSlots]=useState<Slot[]>([]);
+  // Tag each response with the term/week it belongs to. Even before a
+  // new request starts, old slots must not render under a new selection.
+  const [loadedSchedule,setLoadedSchedule]=useState<{
+    termId:string; week:string; slots:Slot[]; hasMore:boolean;
+  }|null>(null);
   const [week,setWeek]=useState(() =>
     weekOf(addCalendarDays(todayVancouver(),7))
   );
   const [selectedSlotId,setSelectedSlotId]=useState<string|null>(null);
-  const [hasMore,setHasMore]=useState(false);
   const [termForm,setTermForm]=useState<FormTerm>({...EMPTY_TERM});
   const [editingTermId,setEditingTermId]=useState<string|null>(null);
   const [editingSlotId,setEditingSlotId]=useState<string|null>(null);
@@ -81,32 +87,35 @@ export default function StaffCalendar(){
   const [error,setError]=useState("");
   const [refreshVersion,setRefreshVersion]=useState(0);
 
-  const refresh=useCallback(async()=>{
+  const refresh=useCallback(async(signal:AbortSignal)=>{
     const [t,s]=await Promise.all([
-      api<{terms:Term[]}>("/api/staff/calendar/terms"),
+      api<{terms:Term[]}>("/api/staff/calendar/terms","GET",undefined,signal),
       termId
         ? api<{slots:Slot[];hasMore:boolean}>(
             "/api/staff/calendar/slots?termId="+encodeURIComponent(termId)+
-            "&week="+encodeURIComponent(week))
+            "&week="+encodeURIComponent(week),"GET",undefined,signal)
         : Promise.resolve({slots:[],hasMore:false})
     ]);
+    // A term/week switch unmounts the old effect, aborting its request.
+    // An obsolete response must never overwrite the current calendar.
+    if(signal.aborted)return;
     setTerms(t.terms);
-    setSlots(s.slots);
-    setHasMore(s.hasMore);
+    setLoadedSchedule({termId,week,slots:s.slots,hasMore:s.hasMore});
     setTermId(current=>current||t.terms[0]?.id||"");
+    setError("");
   },[termId,week]);
 
   useEffect(()=>{
-    let alive=true;
+    const controller=new AbortController();
     let running=false;
     const tick=()=>{
-      if(document.hidden||running||!alive)return;
+      if(document.hidden||running||controller.signal.aborted)return;
       running=true;
-      void refresh().catch(e=>{
-        if(alive)setError((e as Error).message);
+      void refresh(controller.signal).catch(e=>{
+        if(!controller.signal.aborted)setError((e as Error).message);
       }).finally(()=>{
         running=false;
-        if(alive)setLoading(false);
+        if(!controller.signal.aborted)setLoading(false);
       });
     };
     tick();
@@ -114,13 +123,16 @@ export default function StaffCalendar(){
     window.addEventListener("focus",tick);
     document.addEventListener("visibilitychange",tick);
     return()=>{
-      alive=false;
+      controller.abort();
       window.clearInterval(interval);
       window.removeEventListener("focus",tick);
       document.removeEventListener("visibilitychange",tick);
     };
   },[refresh,refreshVersion]);
 
+  const currentSchedule = visibleCalendarSchedule(loadedSchedule,week,termId);
+  const slots = currentSchedule?.slots ?? [];
+  const hasMore = currentSchedule?.hasMore ?? false;
   const selectedTerm=terms.find(t=>t.id===termId);
   async function act(path:string,method:string,body?:unknown,success="Calendar updated"){
     setBusy(true);setError("");setMessage("");
@@ -295,6 +307,9 @@ export default function StaffCalendar(){
             setFromDate(term?.starts_on??"");
             setToDate(term?.ends_on??"");
             setEditingSlotId(null);
+            setSlotLocal("");
+            setEditingTermId(null);
+            setTermForm({...EMPTY_TERM});
             setSelectedSlotId(null);
             if (term) setWeek(weekOf(term.starts_on));
             setMessage("");setError("");
@@ -397,12 +412,16 @@ export default function StaffCalendar(){
         <WeekPicker week={week} onChange={next => {
           setWeek(next);
           setSelectedSlotId(null);
+          setEditingSlotId(null);
+          setSlotLocal("");
         }} />
+        {termId && !currentSchedule && !error &&
+          <p role="status">Loading slots for the selected term and week...</p>}
         {hasMore && <p role="alert">
           This week has more than 500 appointment slots; only the first 500
           are displayed. Contact the developer if this limit is reached.
         </p>}
-        <WeeklyPlanner
+        {currentSchedule && <WeeklyPlanner
           week={week}
           slots={slots}
           ariaLabel="Staff weekly appointment schedule"
@@ -423,7 +442,7 @@ export default function StaffCalendar(){
               </button>
             );
           }}
-        />
+        />}
         {(() => {
           const slot = slots.find(item => item.id === selectedSlotId);
           if (!slot) return null;
