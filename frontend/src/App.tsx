@@ -6,6 +6,8 @@ import StaffEnrollment from "./StaffEnrollment";
 import StaffDirectory from "./StaffDirectory";
 import StaffAppointments from "./StaffAppointments";
 import StudentAppointments from "./StudentAppointments";
+import StudentHousehold from "./StudentHousehold";
+import StaffHousehold from "./StaffHousehold";
 
 interface Profile {
   id: string;
@@ -218,11 +220,13 @@ function App() {
           {profile.role === "student" ? (
             <>
               <StudentEligibility />
+              <StudentHousehold />
               <StudentAppointments />
             </>
           ) : (
             <>
             <StaffAppointments />
+            <StaffHousehold />
             <StaffEnrollment />
             <StaffDirectory />
             </>
