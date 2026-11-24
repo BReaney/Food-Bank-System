@@ -6,7 +6,7 @@ import { buildPageInfo, parseRosterQuery } from "../utils/rosterPagination.js";
 
 // Read-only staff view: existing tables are the source of truth.
 // Viewing/searching student records is audited; no contact details or
-// search phrases are written to audit JSON.
+// search phrases or sensitive dietary preferences are written to audit JSON.
 export const staffRecordsRouter = express.Router();
 staffRecordsRouter.use(requireUser, requireRole("staff"));
 
@@ -40,7 +40,8 @@ staffRecordsRouter.get("/", async (req, res) => {
     );
     const students = await client.query(
       [
-        "SELECT p.id, p.email, p.first_name, p.last_name",
+        "SELECT p.id, p.email, p.first_name, p.last_name, " +
+        "p.student_designation, p.dietary_restrictions",
         filter,
         "ORDER BY lower(p.last_name), lower(p.first_name), lower(p.email), p.id",
         "LIMIT $2 OFFSET $3"
@@ -86,7 +87,8 @@ staffRecordsRouter.get("/:studentId", async (req, res) => {
     client = await pool.connect();
     await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ");
     const profileResult = await client.query(
-      "SELECT id, first_name, last_name, email, created_at " +
+      "SELECT id, first_name, last_name, email, created_at, " +
+      "student_designation, dietary_restrictions " +
       "FROM profiles WHERE id = $1 AND role = 'student'",
       [studentId]
     );
@@ -174,7 +176,7 @@ staffRecordsRouter.get("/:studentId", async (req, res) => {
     );
 
     // A successful record read must have an audit entry. Never log actual
-    // survey responses, names, emails, phone numbers, or consent text.
+    // survey responses, names, emails, phone numbers, dietary values or consent text.
     await client.query(
       "INSERT INTO audit_logs (actor_id, action, target_type, target_id, details) " +
       "VALUES ($1, 'staff_student_record_viewed', 'student', $2, " +
