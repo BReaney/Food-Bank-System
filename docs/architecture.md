@@ -26,7 +26,7 @@ flowchart TB
 
 - **Frontend:** `frontend/src/App.tsx` composes existing role-specific feature screens. `pageNavigation.ts` selects a page from the URL hash; this hides unrelated UI, but **does not authorize access**.
 - **Backend:** `backend/src/index.ts` mounts the route modules. `backend/src/security/sessions.ts` resolves the active session from an HTTP-only cookie and enforces staff/student roles. Each route checks the required ownership and operation rules server-side.
-- **Database:** `backend/src/db.ts` creates the connection pool from the private local `backend/.env`. The schema is built by migrations `001_core.sql` through `006_booking_notifications.sql`.
+- **Database:** `backend/src/db.ts` creates the connection pool from the private local `backend/.env`. The schema is built by migrations `001_core.sql` through `007_student_profile_preferences.sql`.
 - **Time:** Appointments and booking weeks are interpreted in `America/Vancouver`, including daylight-saving changes.
 - **Runtime boundaries:** The prototype only permits protected API routes in a configured **local, non-production** environment. Do not change these checks to make a public demo without an independent security/privacy review.
 
@@ -44,7 +44,7 @@ Reference: [Authentication and profiles](authentication-and-profiles.md).
 
 | Domain | Main tables/views | Why it exists |
 |---|---|---|
-| Profiles and sessions | `profiles`, `auth_credentials`, `auth_sessions` | Fictional account identity and demo role separation |
+| Profiles and sessions | `profiles`, `auth_credentials`, `auth_sessions` | Fictional account identity, domestic/international designation, dietary preferences, and demo role separation |
 | Terms and eligibility | `terms`, `enrollment_verifications`, `eligibility_surveys`, `enrollment_verification_events` | Separate survey and staff verification, per term |
 | Appointment scheduling | `appointment_slots`, `slot_availability`, `bookings`, `booking_events` | Slots, capacity, one-per-week rules, immutable history |
 | Household approvals | `dependent_requests`, `pickup_contacts`, `household_events` | Confirmed dependents, consented pickup contacts, approvals and change history |
