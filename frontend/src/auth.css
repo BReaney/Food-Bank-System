@@ -684,3 +684,38 @@
   .app-nav-items { grid-template-columns: minmax(0, 1fr); }
   .app-role-label { margin-left: 0; margin-top: 4px; }
 }
+
+
+/* Self-reported fictional student profile fields (student only). */
+.profile-dietary-options {
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  padding: 14px;
+  margin: 4px 0;
+  min-width: 0;
+}
+.profile-dietary-options legend { font-weight: 700; padding: 0 4px; }
+.profile-dietary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.auth-fields .profile-dietary-grid label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+  cursor: pointer;
+}
+.auth-fields .profile-dietary-grid input[type="checkbox"] {
+  width: auto;
+  min-width: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--accent, #4d53a7);
+}
+.auth-page .profile-dietary-grid input:focus-visible {
+  outline: 3px solid #6666cb;
+  outline-offset: 2px;
+}
