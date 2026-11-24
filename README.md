@@ -42,7 +42,7 @@ A full-stack appointment-booking and staff-management application built with **R
 | Enrollment verification | Search students and mark term enrollment pending, verified, or rejected |
 | Household approvals | Confirm or deny dependent and third-party pickup requests |
 | Appointment roster | Review reservations and record completed pickups or no-shows |
-| Unified student records | Search student profiles and inspect term enrollment/survey status, household details, appointment history, and booking events |
+| Unified student records | Search student profiles; see domestic/international designation and dietary restrictions in results and individual records, alongside term, household, appointment and event histories |
 | Usage reporting | Generate aggregated term/date-range reports, including booked/completed/missed/cancelled counts, and export CSV |
 | Audit history | Store selected staff decisions and record-access actions without putting private consent or survey answers into audit JSON |
 
@@ -292,7 +292,7 @@ Food-Bank-System/
 This is a **local-only, fictional-data** prototype. In particular:
 
 - No verification of actual UVic email ownership or student/staff identity; local demo accounts use example domains only.
-- Student designation and dietary selections are optional historical data for existing accounts, self-reported fictional demonstration fields, and are **not** used for booking eligibility or delivered to staff reports.
+- Student designation and dietary selections remain unspecified for legacy accounts until entered. These are self-reported fictional fields, visible only to the student and authorized staff in **Unified Staff Records**; they are **not** used for booking eligibility or exported in usage reports.
 - Staff manually decide enrollment and household approvals. The sample survey and consent wording are not an approved organizational policy.
 - Notifications exist **inside the application**, not via email, SMS, or push.
 - No integration with student records, payments, food inventory, or external identity providers.
