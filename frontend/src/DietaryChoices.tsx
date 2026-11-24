@@ -1,24 +1,6 @@
-// Accessible multi-select field reused by student registration and profile editing.
-// "None" is a deliberate selection and cannot coexist with a restriction.
-export const DIETARY_OPTIONS = [
-  { value: "vegetarian", label: "Vegetarian" },
-  { value: "kosher", label: "Kosher" },
-  { value: "gluten-free", label: "Gluten-free" },
-  { value: "vegan", label: "Vegan" },
-  { value: "halal", label: "Halal" },
-  { value: "none", label: "None" }
-] as const;
-export type DietaryRestriction = typeof DIETARY_OPTIONS[number]["value"];
-
-export function changeDietarySelection(
-  current: DietaryRestriction[],
-  choice: DietaryRestriction,
-  checked: boolean
-): DietaryRestriction[] {
-  if (!checked) return current.filter(item => item !== choice);
-  if (choice === "none") return ["none"];
-  return [...current.filter(item => item !== "none" && item !== choice), choice];
-}
+import { DIETARY_OPTIONS, changeDietarySelection } from "./dietarySelection";
+import type { DietaryRestriction } from "./dietarySelection";
+export type { DietaryRestriction } from "./dietarySelection";
 
 interface DietaryChoicesProps {
   selected: DietaryRestriction[];
