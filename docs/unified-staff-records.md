@@ -1,18 +1,23 @@
 # Unified Staff Records Menu (RSD REQ-24–26)
 
 This milestone builds on merged System Usage Reporting (PR #13). **Local-only
-fictional prototype**. No new migrations or dependencies, no changes to booking,
-eligibility, calendar, or appointment-outcome behavior.
+fictional prototype**. Student preferences later added by migration 007
+are displayed here with no additional schema change or dependency.
+There are no changes to booking, eligibility, calendar or appointment-outcome behavior.
 
 ## Staff workflow
 
 Open **Unified staff records menu** near the top of the staff dashboard.
 Search by student name or email, in a literal, case-insensitive, paginated
-roster (25 per page). An empty result shows exactly **No Records Found**.
+roster (25 per page). Search results show the student's **Domestic/International designation**
+and **dietary restrictions** beneath the name/email. An empty result shows
+exactly **No Records Found**.
 
 Select **View record** to inspect the student's:
 
-- Name, email, and account creation date.
+- Name, email, account creation date, domestic/international designation,
+  and the full list of recorded dietary restrictions. Legacy unanswered fields
+  show **Not provided**, which is distinct from an explicit **None**.
 - Per-term enrollment decision and independent eligibility-survey submission
   (including a clear distinction between no decision recorded and pending).
 - Enrollment decision timeline, including withdrawn or re-verified status.
@@ -47,7 +52,7 @@ Audit action names:
 - staff_student_record_viewed: student target ID + appointment page offset.
 
 Audit JSON never includes names, emails, phone numbers, private survey answers,
-or consent text. The records response likewise excludes raw survey responses,
+dietary preferences or consent text. The records response likewise excludes raw survey responses,
 password hashes, session tokens and consent text. Historical booking rows may
 include the recorded pickup name, including for a subsequently removed contact.
 
@@ -55,7 +60,11 @@ include the recorded pickup name, including for a subsequently removed contact.
 
 1. Start the local PostgreSQL, backend and frontend with the existing setup
    commands. Use fictional demo students and staff only.
-2. Log in as staff and search by name and email, then select View record.
+2. Log in as staff and search by name and email. Verify that the search result
+   includes student designation and dietary restrictions, then select View record
+   and verify that the fields match there. Check an international student with
+   multiple restrictions, a student who selected None, and an older profile
+   that has not supplied either field.
 3. Check verified/rejected enrollment across terms and survey confirmation.
    Inspect appointment outcome and expandable booking-event timeline, and
    confirm current dependent and contact approval states.
@@ -78,7 +87,8 @@ Search audit records are intentionally retained as staff-access history.
 
 ## Limits
 
-No migrations, dependency additions, or changes to booking/cutoff rules.
+No additional migrations or dependencies beyond migration 007 from the
+student-preferences feature, and no changes to booking/cutoff rules.
 Only existing recorded events are shown; removed contacts do not appear in
 the active household lists. Historical reschedule slot details are not
 reconstructed beyond stored event type/time. The under-three-second display
