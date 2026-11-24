@@ -12,6 +12,7 @@ import StudentNotifications from "./StudentNotifications";
 import StudentAppointments from "./StudentAppointments";
 import StudentHousehold from "./StudentHousehold";
 import DietaryChoices from "./DietaryChoices";
+import ActionErrorNotice from "./ActionErrorNotice";
 import type { DietaryRestriction } from "./DietaryChoices";
 import StaffHousehold from "./StaffHousehold";
 import {
@@ -185,10 +186,9 @@ function App() {
       <h1>UVSS Food Bank Booking System</h1>
       <p className="auth-muted">Portfolio prototype — fictional accounts only.</p>
 
-      {message && (
-        <p className="auth-notice" role={message.isError ? "alert" : "status"}>
-          {message.text}
-        </p>
+      {message && (message.isError
+        ? <ActionErrorNotice message={message.text} />
+        : <p className="auth-notice" role="status">{message.text}</p>
       )}
 
       {checkingSession ? (
