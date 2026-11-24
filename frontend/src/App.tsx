@@ -11,10 +11,14 @@ import StaffReports from "./StaffReports";
 import StudentNotifications from "./StudentNotifications";
 import StudentAppointments from "./StudentAppointments";
 import StudentHousehold from "./StudentHousehold";
+import DietaryChoices from "./DietaryChoices";
+import type { DietaryRestriction } from "./DietaryChoices";
 import StaffHousehold from "./StaffHousehold";
 import {
   canonicalPageHash, pageHash, pagesForRole, resolvePage
 } from "./pageNavigation";
+
+type StudentDesignation = "domestic" | "international";
 
 interface Profile {
   id: string;
@@ -22,6 +26,8 @@ interface Profile {
   last_name: string;
   email: string;
   role: "student" | "staff";
+  student_designation: StudentDesignation | null;
+  dietary_restrictions: DietaryRestriction[];
 }
 type Message = { text: string; isError: boolean };
 const API = "http://localhost:3001";
@@ -51,8 +57,12 @@ function App() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [studentDesignation, setStudentDesignation] = useState<StudentDesignation | "">("");
+  const [dietaryRestrictions, setDietaryRestrictions] = useState<DietaryRestriction[]>([]);
   const [editingFirst, setEditingFirst] = useState("");
   const [editingLast, setEditingLast] = useState("");
+  const [editingDesignation, setEditingDesignation] = useState<StudentDesignation | "">("");
+  const [editingDietary, setEditingDietary] = useState<DietaryRestriction[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
   const [pageHashValue, setPageHashValue] = useState(() => window.location.hash);
@@ -88,6 +98,8 @@ function App() {
       setProfile(result.profile);
       setEditingFirst(result.profile.first_name);
       setEditingLast(result.profile.last_name);
+      setEditingDesignation(result.profile.student_designation ?? "");
+      setEditingDietary(result.profile.dietary_restrictions ?? []);
     } catch {
       setProfile(null);
     } finally {
@@ -108,12 +120,15 @@ function App() {
       const result = await api<{ message: string }>(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, email, password })
+        body: JSON.stringify({ firstName, lastName, email, password,
+          ...(mode === "register" ? { studentDesignation, dietaryRestrictions } : {}) })
       });
       setPassword("");
       setMessage({ text: result.message, isError: false });
 
       if (mode === "register") {
+        setStudentDesignation("");
+        setDietaryRestrictions([]);
         setMode("login"); // The RSD describes signing in after registration.
       } else {
         await refreshSession();
@@ -133,11 +148,17 @@ function App() {
       const result = await api<{ profile: Profile }>("/api/profile/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName: editingFirst, lastName: editingLast })
+        body: JSON.stringify({ firstName: editingFirst, lastName: editingLast,
+          ...(profile?.role === "student" ? {
+            studentDesignation: editingDesignation,
+            dietaryRestrictions: editingDietary
+          } : {}) })
       });
       setProfile(result.profile);
       setEditingFirst(result.profile.first_name);
       setEditingLast(result.profile.last_name);
+      setEditingDesignation(result.profile.student_designation ?? "");
+      setEditingDietary(result.profile.dietary_restrictions ?? []);
       setMessage({ text: "Profile changes saved.", isError: false });
     } catch (error) {
       setMessage({ text: (error as Error).message, isError: true });
@@ -189,6 +210,16 @@ function App() {
                   <input required maxLength={100} value={lastName}
                     onChange={event => setLastName(event.target.value)} />
                 </label>
+                <label>
+                  Student designation
+                  <select required value={studentDesignation}
+                    onChange={event => setStudentDesignation(event.target.value as StudentDesignation | "")}>
+                    <option value="">Select designation</option>
+                    <option value="domestic">Domestic</option>
+                    <option value="international">International</option>
+                  </select>
+                </label>
+                <DietaryChoices selected={dietaryRestrictions} onChange={setDietaryRestrictions} disabled={busy} />
               </>
             )}
             <label>
@@ -204,7 +235,7 @@ function App() {
                 value={password} onChange={event => setPassword(event.target.value)} />
             </label>
             <div className="auth-actions">
-              <button type="submit" disabled={busy}>
+              <button type="submit" disabled={busy || (mode === "register" && dietaryRestrictions.length === 0)}>
                 {busy ? "Working..." : mode === "register" ? "Create profile" : "Sign in"}
               </button>
               <button type="button" disabled={busy} onClick={() => {
@@ -271,11 +302,27 @@ function App() {
                         <input required maxLength={100} value={editingLast}
                           onChange={event => setEditingLast(event.target.value)} />
                       </label>
-                      <button type="submit" disabled={busy}>Save profile</button>
+                      {profile.role === "student" && (
+                        <>
+                          <label>
+                            Student designation
+                            <select required value={editingDesignation}
+                              onChange={event => setEditingDesignation(event.target.value as StudentDesignation | "")}>
+                              <option value="">Select designation</option>
+                              <option value="domestic">Domestic</option>
+                              <option value="international">International</option>
+                            </select>
+                          </label>
+                          <DietaryChoices selected={editingDietary} onChange={setEditingDietary} disabled={busy} />
+                        </>
+                      )}
+                      <button type="submit" disabled={busy ||
+                        (profile.role === "student" && editingDietary.length === 0)}>Save profile</button>
                     </form>
                     <p className="auth-muted">
                       Email and account role are read-only. Editing those values requires
-                      additional verification workflows.
+                      additional verification workflows. Student designation and dietary
+                      preferences are self-reported, fictional demo fields.
                     </p>
                   </section>
                 ) : profile.role === "student" ? (
