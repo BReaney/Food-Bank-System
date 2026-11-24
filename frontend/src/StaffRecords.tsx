@@ -10,6 +10,8 @@ type Page = {
 type Student = {
   id: string; first_name: string; last_name: string; email: string;
   created_at?: string;
+  student_designation: "domestic" | "international" | null;
+  dietary_restrictions: string[];
 };
 type Term = {
   id: string; code: string; name: string; starts_on: string; ends_on: string;
@@ -55,6 +57,20 @@ function formatDateTime(value: string | null): string {
 
 function displayStatus(value: string): string {
   return value.replace(/_/g, " ");
+}
+
+// Legacy records lack these preferences; a deliberately chosen "none" is different.
+function studentDesignation(value: Student["student_designation"]): string {
+  if (value === "international") return "International";
+  if (value === "domestic") return "Domestic";
+  return "Not provided";
+}
+
+function dietarySummary(restrictions: Student["dietary_restrictions"]): string {
+  if (!restrictions?.length) return "Not provided";
+  if (restrictions.length === 1 && restrictions[0] === "none") return "None";
+  return restrictions.map(value => value === "gluten-free"
+    ? "Gluten-free" : value.charAt(0).toUpperCase() + value.slice(1)).join(", ");
 }
 
 async function requestJson<T>(url: string, signal: AbortSignal): Promise<T> {
@@ -207,6 +223,8 @@ export default function StaffRecords() {
                     <li key={student.id}>
                       <strong>{student.first_name} {student.last_name}</strong>
                       <p className="staff-record-email">{student.email}</p>
+                      <p>Student designation: <strong>{studentDesignation(student.student_designation)}</strong></p>
+                      <p>Dietary restrictions: <strong>{dietarySummary(student.dietary_restrictions)}</strong></p>
                       <button type="button"
                         aria-pressed={selectedId === student.id}
                         disabled={recordLoading && selectedId === student.id}
@@ -242,6 +260,8 @@ export default function StaffRecords() {
               <div className="staff-record-profile">
                 <h4>{record.student.first_name} {record.student.last_name}</h4>
                 <p>{record.student.email}</p>
+                <p>Student designation: <strong>{studentDesignation(record.student.student_designation)}</strong></p>
+                <p>Dietary restrictions: <strong>{dietarySummary(record.student.dietary_restrictions)}</strong></p>
                 <p>Profile created: {formatDateTime(record.student.created_at ?? null)}</p>
               </div>
 
