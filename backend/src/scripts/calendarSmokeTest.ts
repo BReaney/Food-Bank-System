@@ -54,7 +54,8 @@ async function login(email:string,pass:string):Promise<string>{
 }
 async function register(email:string,firstName:string):Promise<void>{
   const r=await request("POST","/api/auth/register","",{
-    email,password,firstName,lastName:"Fixture"
+    email,password,firstName,lastName:"Fixture",
+     studentDesignation:"domestic",dietaryRestrictions:["none"]
   });
   expectStatus(r,201);
   const p=await pool.query<{id:string}>(
