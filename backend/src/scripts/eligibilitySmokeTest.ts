@@ -40,7 +40,8 @@ try {
   assert.equal(anonymous.status, 401);
 
   const registration = await request("POST", "/api/auth/register", undefined, {
-    email, firstName: "Eligibility", lastName: "Tester", password
+    email, firstName: "Eligibility", lastName: "Tester", password,
+    studentDesignation: "domestic", dietaryRestrictions: ["none"]
   });
   assert.equal(registration.status, 201, JSON.stringify(registration.body));
 

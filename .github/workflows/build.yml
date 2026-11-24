@@ -77,6 +77,14 @@ jobs:
         working-directory: frontend
         run: npm run test:navigation
 
+      - name: Test student dietary selection logic
+        working-directory: frontend
+        run: npm run test:profile-preferences
+
+      - name: Test action-error scroll and accessibility navigation
+        working-directory: frontend
+        run: npm run test:notice-navigation
+
       - name: Prepare fictional database and accounts
         working-directory: backend
         run: |

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import ActionErrorNotice from "./ActionErrorNotice";
 
 interface Term { id: string; code: string; name: string; }
 interface Booking {
@@ -222,7 +223,7 @@ export default function StaffAppointments() {
         </div>
       </form>
 
-      {actionError && <p role="alert" className="auth-notice">{actionError}</p>}
+      {actionError && <ActionErrorNotice message={actionError} />}
       {success && <p role="status" className="auth-notice">{success}</p>}
       {error && <p role="alert" className="auth-notice">{error}</p>}
       {loading && <p role="status">Refreshing bookings...</p>}

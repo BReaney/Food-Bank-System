@@ -26,7 +26,7 @@ A full-stack appointment-booking and staff-management application built with **R
 
 | Feature | What it does |
 |---|---|
-| Account and profile | Register/sign in with a **fictional** example-domain address; update your name and sign out |
+| Account and profile | Register/sign in with a **fictional** example-domain address; edit your name, domestic/international designation, and selected dietary preferences; sign out |
 | Term eligibility | Complete a demonstration eligibility survey and view staff enrollment-verification status by term |
 | Weekly appointment calendar | Inspect staff-defined slots and availability; book no more than once per Vancouver-local week, subject to minimum notice and capacity |
 | Appointment management | View upcoming appointments and history, cancel or reschedule eligible reservations |
@@ -42,7 +42,7 @@ A full-stack appointment-booking and staff-management application built with **R
 | Enrollment verification | Search students and mark term enrollment pending, verified, or rejected |
 | Household approvals | Confirm or deny dependent and third-party pickup requests |
 | Appointment roster | Review reservations and record completed pickups or no-shows |
-| Unified student records | Search student profiles and inspect term enrollment/survey status, household details, appointment history, and booking events |
+| Unified student records | Search student profiles; see domestic/international designation and dietary restrictions in results and individual records, alongside term, household, appointment and event histories |
 | Usage reporting | Generate aggregated term/date-range reports, including booked/completed/missed/cancelled counts, and export CSV |
 | Audit history | Store selected staff decisions and record-access actions without putting private consent or survey answers into audit JSON |
 
@@ -133,11 +133,12 @@ psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/004_household_pickups.sql
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/005_staff_calendar.sql
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/006_booking_notifications.sql
+psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/007_student_profile_preferences.sql
 ```
 
 If `psql` is unavailable, open **each SQL file in order** using pgAdmin's Query Tool connected as `foodbank_app` to `foodbank_dev`, and execute it once.
 
-**Migrations 001–006 are one-time migrations for a new database. Do not re-run them against an existing configured database.** No migration runner is installed.
+**Migrations 001–007 are one-time migrations for a new database. Do not re-run them against an existing configured database.** No migration runner is installed.
 
 ### 4. Load fictional sample records
 
@@ -227,9 +228,10 @@ Do not expect a website at `http://localhost:3001/`; port 3001 serves the JSON A
 1. Sign in as `staff.demo@example.com`. Open **Calendar & slots** to inspect the demonstration term and create additional slots when needed.
 2. Sign out and sign in as `alex.demo@example.com`, or use **Create a student profile** with a fictional `@example.test` address.
 3. Student pages include **Book & manage appointments**, **Eligibility & enrollment**, **Dependents & pickup contacts**, **Notifications**, and **My profile**.
-4. Newly registered fictional students must submit the term survey and be **verified by staff** before booking. The pre-seeded Alex account has demo-term verification data.
-5. Use an eligible available appointment slot, inspect the private confirmation, and test cancellation or rescheduling before the configured cutoff.
-6. Sign back in as staff to review **Appointment roster**, **Enrollment verification**, **Household approvals**, **Student records**, and **Usage reports**.
+4. New students choose their domestic/international designation and dietary restrictions (or explicitly **None**) during registration. Existing accounts can fill in these fields through **My profile**.
+5. Newly registered fictional students must submit the term survey and be **verified by staff** before booking. The pre-seeded Alex account has demo-term verification data.
+6. Use an eligible available appointment slot, inspect the private confirmation, and test cancellation or rescheduling before the configured cutoff.
+7. Sign back in as staff to review **Appointment roster**, **Enrollment verification**, **Household approvals**, **Student records**, and **Usage reports**.
 
 The app uses **America/Vancouver** for appointment scheduling and local booking-week rules. You may need to create slots on the staff calendar if the demonstration slot has become unavailable.
 
@@ -274,7 +276,7 @@ Food-Bank-System/
 │   ├── src/                # React pages, feature components, CSS, calendar
 │   └── tests/              # Existing UI logic/navigation tests
 ├── database/
-│   ├── migrations/         # Ordered schema migrations 001–006
+│   ├── migrations/         # Ordered schema migrations 001–007
 │   └── seed/               # Fictional sample data
 ├── docs/                   # Current architecture + historical milestone notes
 ├── testing/
@@ -290,6 +292,7 @@ Food-Bank-System/
 This is a **local-only, fictional-data** prototype. In particular:
 
 - No verification of actual UVic email ownership or student/staff identity; local demo accounts use example domains only.
+- Student designation and dietary selections remain unspecified for legacy accounts until entered. These are self-reported fictional fields, visible only to the student and authorized staff in **Unified Staff Records**; they are **not** used for booking eligibility or exported in usage reports.
 - Staff manually decide enrollment and household approvals. The sample survey and consent wording are not an approved organizational policy.
 - Notifications exist **inside the application**, not via email, SMS, or push.
 - No integration with student records, payments, food inventory, or external identity providers.

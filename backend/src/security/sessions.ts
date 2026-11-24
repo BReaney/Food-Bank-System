@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
 import { pool } from "../db.js";
+import type { StudentDesignation, DietaryRestriction } from "../utils/profilePreferences.js";
 
 const COOKIE_NAME = "foodbank_session";
 const SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -11,6 +12,8 @@ export interface Account {
   first_name: string;
   last_name: string;
   role: "student" | "staff";
+  student_designation: StudentDesignation | null;
+  dietary_restrictions: DietaryRestriction[];
 }
 
 export type AccountRequest = Request & { account?: Account };
@@ -70,7 +73,8 @@ export async function requireUser(
   }
   try {
     const result = await pool.query<Account>(
-      "SELECT p.id, p.email, p.first_name, p.last_name, p.role " +
+      "SELECT p.id, p.email, p.first_name, p.last_name, p.role, " +
+      "p.student_designation, p.dietary_restrictions " +
       "FROM auth_sessions AS s " +
       "JOIN profiles AS p ON p.id = s.profile_id " +
       "WHERE s.token_hash = $1 AND s.expires_at > NOW()",

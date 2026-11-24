@@ -46,6 +46,14 @@ capacity and number of booked records determine what other students see.
 - Polling is **not truly instantaneous**. Other open pages will typically
   reflect changes within five seconds. The server is authoritative.
 
+## Visible, accessible error feedback
+
+- When a student tries to book without an eligibility survey, staff verification, or another booking prerequisite, the backend's existing validation error appears in a **larger dark-red alert** at the top of the appointment page.
+- The browser **scrolls the alert into view and moves keyboard focus to it** after an unsuccessful booking, cancellation, reschedule, or pickup edit. Reduced-motion users get an immediate rather than animated scroll.
+- The same reusable action-error alert is used for account/profile actions and staff appointment-outcome updates. Other existing error notices also receive the clearer dark-red styling.
+- **Background polling/load errors are styled but do not automatically scroll or steal focus**, to avoid repeatedly interrupting users during periodic refreshes.
+- These are presentation-only changes: server-side booking eligibility and transaction rules are unchanged. The frontend navigation helper is tested with `npm run test:notice-navigation`.
+
 ## Endpoints
 
 Student-only:

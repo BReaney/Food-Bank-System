@@ -12,7 +12,7 @@ The [root README](../README.md) is the **current entry point** for project featu
 |---|---|
 | [Root README](../README.md) | Complete overview and first-time local setup |
 | [Architecture and data flows](architecture.md) | Components, data model, API boundaries and main workflows |
-| [Database setup and migrations](../database/README.md) | Create a new database, apply migrations 001–006, seed fictional data |
+| [Database setup and migrations](../database/README.md) | Create a new database, apply migrations 001–007, seed fictional data |
 | [Testing guide](../testing/README.md) | RSD testing process and local/CI execution |
 | [RSD traceability matrix](../testing/requirements-matrix.md) | All functional and nonfunctional requirements mapped to tests |
 | [Latest verified test results](../testing/test-results.md) | Source-attributed automated results and honest deferrals |
@@ -24,6 +24,7 @@ These are **historical milestone notes**, useful for understanding *why* the cur
 ### Student features and account safety
 
 - [Authentication and profiles](authentication-and-profiles.md)
+- [Student designation and dietary preferences](student-profile-preferences.md)
 - [Eligibility and enrollment](eligibility-and-enrollment.md)
 - [Appointment management](appointment-management.md)
 - [Dependents and third-party pickups](dependents-third-party-pickups.md)

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import WeeklyPlanner, { WeekPicker } from "./WeeklyPlanner";
+import ActionErrorNotice from "./ActionErrorNotice";
 import { addCalendarDays, clockLabel, localParts, todayVancouver, weekOf } from "./calendarDates";
 import { validRescheduleChoice, visibleCalendarSchedule } from "./calendarStateGuards";
 
@@ -226,7 +227,7 @@ export default function StudentAppointments() {
   return (
     <>
       {message && <p className="auth-notice" role="status">{message}</p>}
-      {actionError && <p className="auth-notice" role="alert">{actionError}</p>}
+      {actionError && <ActionErrorNotice message={actionError} />}
       {error && <p className="auth-notice" role="alert">{error}</p>}
       <section className="auth-panel">
         <h2>Upcoming appointment slots</h2>

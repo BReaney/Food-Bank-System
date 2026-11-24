@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:calendar-state": "node --test tests/calendarStateGuards.test.mjs",
-    "test:navigation": "node --test tests/pageNavigation.test.mjs"
+    "test:navigation": "node --test tests/pageNavigation.test.mjs",
+    "test:profile-preferences": "node --test tests/dietarySelection.test.mjs",
+    "test:notice-navigation": "node --test tests/noticeNavigation.test.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",

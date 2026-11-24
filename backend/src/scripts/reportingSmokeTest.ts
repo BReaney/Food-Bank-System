@@ -76,7 +76,8 @@ function reportPath(scope: string, from?: string, to?: string, csv = false) {
 try {
   for(let i=0;i<emails.length;i++){
     const r=await request("POST","/api/auth/register","",{
-      email:emails[i],password,firstName:"Fixture"+(i+1),lastName:"Reporting"
+      email:emails[i],password,firstName:"Fixture"+(i+1),lastName:"Reporting",
+       studentDesignation:"domestic",dietaryRestrictions:["none"]
     });
     requireStatus(r,201);
   }
