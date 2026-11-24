@@ -50,8 +50,9 @@ try {
   assert.ok(staffId, "Provisioned demo staff is required");
 
   const created = await pool.query<{ id: string }>(
-    "INSERT INTO profiles (email,first_name,last_name,role) " +
-    "VALUES ($1,'Records','Fixture','student') RETURNING id", [studentEmail]
+    "INSERT INTO profiles (email,first_name,last_name,role,student_designation,dietary_restrictions) " +
+    "VALUES ($1,'Records','Fixture','student','international',ARRAY['vegan','gluten-free']::text[]) " +
+    "RETURNING id", [studentEmail]
   );
   studentId = created.rows[0].id;
   const createdTerms = await pool.query<{ id: string }>(
@@ -144,6 +145,8 @@ try {
   assert.equal(search.status, 200);
   assert.equal(search.data.pagination.total, 1);
   assert.equal(search.data.students[0].id, studentId);
+  assert.equal(search.data.students[0].student_designation, "international");
+  assert.deepEqual(search.data.students[0].dietary_restrictions, ["vegan", "gluten-free"]);
   const caseInsensitive = await get(
     path + "?search=" + encodeURIComponent("RECORDS FIXTURE"), staffCookie
   );
@@ -167,6 +170,8 @@ try {
   const first = await get(path + "/" + studentId + "?limit=1&offset=0", staffCookie);
   assert.equal(first.status, 200, JSON.stringify(first.data));
   assert.equal(first.data.student.email, studentEmail);
+  assert.equal(first.data.student.student_designation, "international");
+  assert.deepEqual(first.data.student.dietary_restrictions, ["vegan", "gluten-free"]);
   assert.equal(first.data.terms.length >= 2, true);
   assert.equal(first.data.terms.find((t: any) => t.id === winterId).enrollment_status, "verified");
   assert.ok(first.data.terms.find((t: any) => t.id === winterId).survey_submitted_at);
@@ -206,7 +211,41 @@ try {
     [staffId]
   );
   assert.ok(Number(searches.rows[0].count) >= 3);
-  console.log("PASS: staff record inspection and search are audited");
+  // Legacy accounts have unspecified fields. An explicit choice of "none"
+  // must remain distinguishable from an unanswered dietary question.
+  await pool.query(
+    "UPDATE profiles SET student_designation = NULL, dietary_restrictions = ARRAY[]::text[] " +
+    "WHERE id = $1", [studentId]
+  );
+  const legacySearch = await get(path + "?search=" + encodeURIComponent(studentEmail), staffCookie);
+  assert.equal(legacySearch.status, 200);
+  assert.equal(legacySearch.data.students[0].student_designation, null);
+  assert.deepEqual(legacySearch.data.students[0].dietary_restrictions, []);
+  const legacyDetail = await get(path + "/" + studentId, staffCookie);
+  assert.equal(legacyDetail.status, 200);
+  assert.equal(legacyDetail.data.student.student_designation, null);
+  assert.deepEqual(legacyDetail.data.student.dietary_restrictions, []);
+
+  await pool.query(
+    "UPDATE profiles SET student_designation = 'domestic', " +
+    "dietary_restrictions = ARRAY['none']::text[] WHERE id = $1", [studentId]
+  );
+  const noneSearch = await get(path + "?search=" + encodeURIComponent(studentEmail), staffCookie);
+  assert.equal(noneSearch.status, 200);
+  assert.equal(noneSearch.data.students[0].student_designation, "domestic");
+  assert.deepEqual(noneSearch.data.students[0].dietary_restrictions, ["none"]);
+  const noneDetail = await get(path + "/" + studentId, staffCookie);
+  assert.equal(noneDetail.status, 200);
+  assert.equal(noneDetail.data.student.student_designation, "domestic");
+  assert.deepEqual(noneDetail.data.student.dietary_restrictions, ["none"]);
+  const audits = await pool.query<{ details: unknown }>(
+    "SELECT details FROM audit_logs WHERE actor_id = $1 AND target_id = $2 " +
+    "AND action = 'staff_student_record_viewed'", [staffId, studentId]
+  );
+  assert.ok(audits.rows.every(row => !JSON.stringify(row.details).includes("gluten-free")));
+  assert.ok(audits.rows.every(row => !JSON.stringify(row.details).includes("vegan")));
+  console.log("PASS: staff-only search/details show multiple preferences, legacy unspecified values and explicit None");
+  console.log("PASS: staff record inspection and search are audited without recording dietary values");
   console.log("Unified staff records integration tests passed.");
 } finally {
   // Delete only fixtures created by this test; leave other student data alone.
