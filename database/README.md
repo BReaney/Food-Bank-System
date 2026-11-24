@@ -30,7 +30,7 @@ If the role/database already exists, **do not run the create commands again**.
 
 ## Fresh installation — ordered migrations
 
-The repository has **six migrations**. Run each **exactly once, in sequence**, on a **new** `foodbank_dev` DB, connected as `foodbank_app`:
+The repository has **seven migrations**. Run each **exactly once, in sequence**, on a **new** `foodbank_dev` DB, connected as `foodbank_app`:
 
 | Step | Migration | Purpose |
 |---|---|---|
@@ -40,6 +40,7 @@ The repository has **six migrations**. Run each **exactly once, in sequence**, o
 | 4 | [004_household_pickups.sql](migrations/004_household_pickups.sql) | Dependents, pickup contacts, consent history and booking references |
 | 5 | [005_staff_calendar.sql](migrations/005_staff_calendar.sql) | Staff schedule event support and private slot-change notifications |
 | 6 | [006_booking_notifications.sql](migrations/006_booking_notifications.sql) | Booking confirmation/cancellation/rescheduling notifications and inbox index |
+| 7 | [007_student_profile_preferences.sql](migrations/007_student_profile_preferences.sql) | Student domestic/international designation and validated dietary preferences |
 
 On Windows PowerShell, run from the repository root if `psql` is in PATH:
 
@@ -50,6 +51,7 @@ psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/004_household_pickups.sql
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/005_staff_calendar.sql
 psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/006_booking_notifications.sql
+psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/007_student_profile_preferences.sql
 ```
 
 Alternatively, open each file with pgAdmin Query Tool under `foodbank_app`, execute in order, and check that it succeeds before moving to the next.
@@ -101,6 +103,10 @@ FROM pg_constraint
 WHERE conname = 'student_notifications_category_check';
 ```
 
+Migration 007 adds `profiles.student_designation` (nullable for previously created accounts)
+and `profiles.dietary_restrictions` (empty array means not yet specified).
+An explicit `none` selection is different from missing old information.
+
 The notification category constraint should include `booking_confirmed`,
 `booking_cancelled`, and `booking_rescheduled` after migration 006.
 
@@ -113,6 +119,22 @@ The API also provides a local-only `http://localhost:3001/api/db-health` endpoin
 - Survey submission and enrollment verification are **separate per-term records**. Neither fictional survey submission nor demo staff approval is a verified real-world identity.
 - Sensitive contact and consent text is held in owner-scoped tables; audit events avoid duplicating those values.
 - The prototype lacks production-grade identity assurance, database hardening, backup/recovery automation, privacy-policy approval and operational monitoring. Do not use real user data.
+
+## Upgrade an existing local prototype
+
+If your local database already contains migrations 001–006, **apply only migration 007 once**,
+connected as `foodbank_app`:
+
+```powershell
+psql -h localhost -U foodbank_app -d foodbank_dev -v ON_ERROR_STOP=1 -f database/migrations/007_student_profile_preferences.sql
+```
+
+Or run that SQL file in pgAdmin Query Tool as the database owner. Then restart the backend.
+This migration does not change existing student bookings, passwords, eligibility,
+or household records. Existing student designation and dietary fields remain
+unspecified until the student visits **My profile** and chooses values.
+
+See [Student profile preferences](../docs/student-profile-preferences.md) for data-validation and privacy notes.
 
 ## CI test database (different from your local DB)
 
