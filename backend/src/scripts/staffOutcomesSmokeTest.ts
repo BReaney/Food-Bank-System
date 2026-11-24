@@ -47,7 +47,8 @@ function equalStatus(result: ResponseData, expected: number): void {
 }
 async function register(email: string, firstName: string) {
   equalStatus(await request("POST", "/api/auth/register", "", {
-    email, firstName, lastName: "Fixture", password
+    email, firstName, lastName: "Fixture", password,
+    studentDesignation: "domestic", dietaryRestrictions: ["none"]
   }), 201);
 }
 async function login(email: string, pass: string): Promise<string> {
