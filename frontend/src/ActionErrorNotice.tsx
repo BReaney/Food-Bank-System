@@ -13,7 +13,7 @@ export default function ActionErrorNotice({ message }: ActionErrorNoticeProps) {
 
   useEffect(() => {
     if (!noticeRef.current) return;
-    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
     revealActionError(noticeRef.current, reducedMotion);
   }, [message]);
 
