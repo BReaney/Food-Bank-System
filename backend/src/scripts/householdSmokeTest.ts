@@ -42,7 +42,8 @@ async function request(method: string, path: string, cookie = "", body?: unknown
 }
 async function register(email: string, firstName: string): Promise<string> {
   const result = await request("POST", "/api/auth/register", "", {
-    email, password, firstName, lastName: "Fixture"
+    email, password, firstName, lastName: "Fixture",
+    studentDesignation: "international", dietaryRestrictions: ["halal"]
   });
   assert.equal(result.status, 201, JSON.stringify(result.body));
   const row = await pool.query<{ id: string }>(
