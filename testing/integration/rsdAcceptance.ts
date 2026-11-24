@@ -254,7 +254,8 @@ try {
   await check("AT-04", ["F-01", "F-05"], "Two fictional student accounts can register without staff role", async () => {
     for (const [email, first] of [[emailA, "AcceptanceA"], [emailB, "AcceptanceB"]]) {
       expectStatus(await request("POST", "/api/auth/register", "", {
-        email, firstName: first, lastName: "Fixture", password }), 201);
+        email, firstName: first, lastName: "Fixture", password,
+         studentDesignation: "domestic", dietaryRestrictions: ["none"] }), 201);
     }
     const ids = await pool.query<{ id: string; email: string; role: string }>(
       "SELECT id,email,role FROM profiles WHERE email=ANY($1::text[]) ORDER BY email",
@@ -266,7 +267,8 @@ try {
   });
   await check("AT-05", ["F-03"], "Duplicate registration is rejected case-insensitively", async () => {
     expectStatus(await request("POST", "/api/auth/register", "", {
-      email: emailA.toUpperCase(), firstName: "Another", lastName: "Fixture", password }), 409);
+      email: emailA.toUpperCase(), firstName: "Another", lastName: "Fixture", password,
+       studentDesignation: "domestic", dietaryRestrictions: ["none"] }), 409);
   });
   await check("AT-06", ["N-S05"], "Incorrect password never starts an authenticated session", async () => {
     expectStatus(await request("POST", "/api/auth/login", "", {
