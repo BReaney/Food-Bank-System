@@ -2,13 +2,15 @@ import express from "express";
 import { pool } from "../db.js";
 import { hashPassword, normalizeDemoEmail, validDemoPassword, validName, verifyPassword } from "../security/passwords.js";
 import { currentAccount, endSession, requireUser, startSession } from "../security/sessions.js";
+import { validStudentDesignation, validDietaryRestrictions } from "../utils/profilePreferences.js";
 
 export const authRouter = express.Router();
 
 // Public student registration. For this prototype, allow only fictional
 // example.test / example.com email addresses, not real university email.
 authRouter.post("/register", async (req, res) => {
-  const { email: rawEmail, firstName, lastName, password } = req.body ?? {};
+  const { email: rawEmail, firstName, lastName, password,
+    studentDesignation, dietaryRestrictions } = req.body ?? {};
   const email = normalizeDemoEmail(rawEmail);
 
   if (!email || !validName(firstName) || !validName(lastName) ||
@@ -20,14 +22,24 @@ authRouter.post("/register", async (req, res) => {
     return;
   }
 
+  if (!validStudentDesignation(studentDesignation) ||
+      !validDietaryRestrictions(dietaryRestrictions)) {
+    res.status(400).json({
+      error: "Select domestic or international student status and at least one " +
+        "valid dietary option. None cannot be combined with other options."
+    });
+    return;
+  }
+
   const passwordHash = await hashPassword(password);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     const created = await client.query<{ id: string }>(
-      "INSERT INTO profiles (email, first_name, last_name, role) " +
-      "VALUES ($1, $2, $3, 'student') RETURNING id",
-      [email, firstName.trim(), lastName.trim()]
+      "INSERT INTO profiles (email, first_name, last_name, role, " +
+      "student_designation, dietary_restrictions) " +
+      "VALUES ($1, $2, $3, 'student', $4, $5::text[]) RETURNING id",
+      [email, firstName.trim(), lastName.trim(), studentDesignation, dietaryRestrictions]
     );
     await client.query(
       "INSERT INTO auth_credentials (profile_id, password_hash) VALUES ($1, $2)",
